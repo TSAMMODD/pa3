@@ -28,7 +28,6 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-
 /* This variable is 1 while the client is active and becomes 0 after
    a quit command to terminate the client and to clean up the
    connection. */
@@ -123,8 +122,6 @@ static char *chatroom;
  * chat room he is in as part of the prompt. */
 static char *prompt;
 
-
-
 /* When a line is entered using the readline library, this function
    gets called to handle the entered line. Implement the code to
    handle the user requests in this function. The client handles the
@@ -151,8 +148,7 @@ void readline_callback(char *line)
         int i = 4;
         while (line[i] != '\0' && isspace(line[i])) { i++; }
         if (line[i] == '\0') {
-            write(STDOUT_FILENO, "Usage: /game username\n",
-                    29);
+            write(STDOUT_FILENO, "Usage: /game username\n", 29);
             fsync(STDOUT_FILENO);
             rl_redisplay();
             return;
@@ -193,8 +189,7 @@ void readline_callback(char *line)
         int i = 4;
         while (line[i] != '\0' && isspace(line[i])) { i++; }
         if (line[i] == '\0') {
-            write(STDOUT_FILENO, "Usage: /say username message\n",
-                    29);
+            write(STDOUT_FILENO, "Usage: /say username message\n", 29);
             fsync(STDOUT_FILENO);
             rl_redisplay();
             return;
@@ -203,8 +198,7 @@ void readline_callback(char *line)
         int j = i+1;
         while (line[j] != '\0' && isgraph(line[j])) { j++; }
         if (line[j] == '\0') {
-            write(STDOUT_FILENO, "Usage: /say username message\n",
-                    29);
+            write(STDOUT_FILENO, "Usage: /say username message\n", 29);
             fsync(STDOUT_FILENO);
             rl_redisplay();
             return;
