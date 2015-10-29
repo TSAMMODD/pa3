@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <signal.h>
+#include <arpa/inet.h>
 
 /* Secure socket layer headers */
 #include <openssl/ssl.h>
@@ -251,80 +252,11 @@ int main(int argc, char **argv)
     SSL_library_init();
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
-    FILE *fp_crt, *fp_key;
-    //char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
-    //memset(certificate, 0, MAX_LENGTH);
-    //memset(private_key, 0, MAX_LENGTH);
-    //int i = 0;
+    SSL *server_ssl = SSL_new(ssl_ctx);
 
-    /* Testing the input parameters */
-    /*
-    i = 0;
-    for(; i < argc; i++) {
-        fprintf(stdout, "i: %d - %s\n", i, argv[i]);
-        fflush(stdout);
-    }
-    */
-
-    /* Opening the key file */
-    //fp_crt = fopen(argv[3], "r");
-    /* Opening the certificate file */
-    //fp_key = fopen(argv[4], "r");
-    /* Error reading the files */
-    /*
-    if(fp_crt == NULL || fp_key == NULL) {
-        perror("Error while opening the file.\n");
-        exit(0);
-    }
-    */
-
-    /* Reading our certificate from the file */
-    /*
-    i = 0;
-    while((ch = fgetc(fp_crt) ) != EOF) {
-        certificate[i] = ch;
-        i++;
-    }
-    */
-    /* Reading our private key from the file */
-    /*
-    i = 0;
-    while((ch = fgetc(fp_key) ) != EOF) {
-        private_key[i] = ch;
-        i++;
-    }
-    */
-
-    /* Closing our files */
-    //fclose(fp_crt);
-    //fclose(fp_key);
-
-    /* Printing out the certificate and private key */
-    //fprintf(stdout, "%s", certificate);
-    //fprintf(stdout, "%s", private_key);
-    //fflush(stdout);
-    
-    /* Loading self-signed certificate */
-    SSL_CTX_set_verify_depth(ssl_ctx, 1);
-    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
-    /* Loading certificate from client certificate file */
-    if(SSL_CTX_use_certificate_file(ssl_ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
-        perror("Error loading certificate.\n");
-        exit(0);
-    }
-    /* Loading private key from client private key file */
-    if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[4], SSL_FILETYPE_PEM) <= 0) {
-        perror("Error loading private key.\n");
-        exit(0);
-    }
-    /* Loading CA from client CA file */
+    /* Loading CA from the CA file and verify the certificate from the server */
     if(SSL_CTX_load_verify_locations(ssl_ctx, argv[5], NULL) <= 0) {
         perror("Error loading CA.\n");
-        exit(0);
-    }
-    /* Verify client's private key */
-    if(!SSL_CTX_check_private_key(ssl_ctx)) {
-        perror("Error checking private key.\n");
         exit(0);
     }
 
@@ -343,6 +275,48 @@ int main(int argc, char **argv)
      * create here can be used in select calls, so do not forget
      * them.
      */
+    /* Create sockfd */
+    int sockfd;
+    /* Create a sockaddress for server and client */
+    struct sockaddr_in server, client;
+    /* Create and bind a TCP socket */
+    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Could not create socket.\n");
+        exit(0);
+    }
+
+    memset(&server, 0, sizeof(server));
+    server.sin_family = AF_INET;
+    /* Network functions need arguments in network byte order instead of 
+        host byte order. The macros htonl, htons convert the values */
+    //server.sin_addr.s_addr = htonl(INADDR_ANY);
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_port = htons(atoi(argv[2]));
+    bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
+    
+    int i = 0;
+    for(; i < argc; i++) {
+        fprintf(stdout, "i: %d - %s\n", i, argv[i]);
+        fflush(stdout);
+    }
+
+    if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
+        perror("Could not connect to server.\n");
+        exit(0);
+    }
+
+    SSL_set_fd(server_ssl, sockfd);
+
+
+    if(SSL_write(server_ssl, "lol", sizeof("lol")) <= 0) {
+        perror("Error sending message to client.\n");
+        exit(0);
+    }
+
+    /* Before we can accept messages, we have to listen to the port. We allow one
+     * 1 connection to queue for simplicity.
+     */
+    listen(sockfd, 1);
 
     /* Use the socket for the SSL connection. */
     SSL_set_fd(server_ssl, server_fd);

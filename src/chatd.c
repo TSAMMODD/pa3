@@ -19,6 +19,10 @@
 
 #include <glib.h>
 
+/* Secure socket layer headers */
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 
 
 /* This can be used to build instances of GTree that index on
@@ -49,6 +53,31 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2)
 
 int main(int argc, char **argv)
 {
+    /* Initialize OpenSSL */
+    SSL_library_init();
+    SSL_load_error_strings();
+    SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
+
+    /* Loading self-signed certificate */
+    SSL_CTX_set_verify_depth(ssl_ctx, 1);
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
+    /* Loading certificate from the certificate file */
+    if(SSL_CTX_use_certificate_file(ssl_ctx, argv[2], SSL_FILETYPE_PEM) <= 0) {
+        perror("Error loading certificate.\n");
+        exit(0);
+    }
+    /* Loading private key from the private key file */
+    if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
+        perror("Error loading private key.\n");
+        exit(0);
+    }
+
+    /* Verify server's private key */
+    if(!SSL_CTX_check_private_key(ssl_ctx)) {
+        perror("Error checking private key.\n");
+        exit(0);
+    }
+
     int sockfd;
     struct sockaddr_in server, client;
     char message[512];
