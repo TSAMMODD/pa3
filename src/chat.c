@@ -297,8 +297,17 @@ int main(int argc, char **argv)
     fflush(stdout);
     
     /* Loading self-signed certificate */
-    //SSL_CTX_use_PrivateKey();
-    //LoadCertificates(ssl_ctx,,,);
+    SSL_CTX_set_verify_depth(ssl_ctx, 1);
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
+    if(SSL_CTX_use_certificate_file(ssl_ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
+        perror("Error using certificate.\n");
+        exit(0);
+    }
+
+    if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[4], SSL_FILETYPE_PEM) <= 0) {
+        perror("Error using private key.\n");
+        exit(0);
+    }
 
     /* TODO:
      * We may want to use a certificate file if we self sign the
