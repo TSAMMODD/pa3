@@ -251,9 +251,6 @@ int main(int argc, char **argv)
     SSL_library_init();
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
-    /* Loading self-signed certificate */
-    //SSL_CTX_use_PrivateKey();
-    //LoadCertificates(ssl_ctx,,,);
     FILE *fp_crt, *fp_key;
     char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
     memset(certificate, 0, MAX_LENGTH);
@@ -298,6 +295,10 @@ int main(int argc, char **argv)
     fprintf(stdout, "%s", certificate);
     fprintf(stdout, "%s", private_key);
     fflush(stdout);
+    
+    /* Loading self-signed certificate */
+    //SSL_CTX_use_PrivateKey();
+    //LoadCertificates(ssl_ctx,,,);
 
     /* TODO:
      * We may want to use a certificate file if we self sign the
