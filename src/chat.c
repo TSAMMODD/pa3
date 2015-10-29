@@ -307,21 +307,22 @@ int main(int argc, char **argv)
     /* Loading self-signed certificate */
     SSL_CTX_set_verify_depth(ssl_ctx, 1);
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
+    /* Loading certificate from client certificate file */
     if(SSL_CTX_use_certificate_file(ssl_ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
-        perror("Error using certificate.\n");
+        perror("Error loading certificate.\n");
         exit(0);
     }
-
+    /* Loading private key from client private key file */
     if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[4], SSL_FILETYPE_PEM) <= 0) {
-        perror("Error using private key.\n");
+        perror("Error loading private key.\n");
         exit(0);
     }
-
+    /* Loading CA from client CA file */
     if(SSL_CTX_load_verify_locations(ssl_ctx, argv[5], NULL) <= 0) {
         perror("Error loading CA.\n");
         exit(0);
     }
-
+    /* Verify client's private key */
     if(!SSL_CTX_check_private_key(ssl_ctx)) {
         perror("Error checking private key.\n");
         exit(0);
@@ -354,6 +355,7 @@ int main(int argc, char **argv)
      */
 
     /* Set up secure connection to the chatd server. */
+    
 
     /* Read characters from the keyboard while waiting for input.
     */
