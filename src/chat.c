@@ -258,39 +258,46 @@ int main(int argc, char **argv)
     char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
     memset(certificate, 0, MAX_LENGTH);
     memset(private_key, 0, MAX_LENGTH);
+    int i = 0;
 
     /* Testing the input parameters */
-    int i = 0;
+    i = 0;
     for(; i < argc; i++) {
         fprintf(stdout, "i: %d - %s\n", i, argv[i]);
         fflush(stdout);
     }
 
-    /* Opening the key files */
+    /* Opening the key file */
     fp_crt = fopen(argv[3], "r");
+    /* Opening the certificate file */
     fp_key = fopen(argv[4], "r");
+    /* Error reading the files */
     if(fp_crt == NULL || fp_key == NULL) {
         perror("Error while opening the file.\n");
         exit(0);
     }
 
-    /* Reading our key from the files */
+    /* Reading our certificate from the file */
+    i = 0;
     while((ch = fgetc(fp_crt) ) != EOF) {
-        printf("%c",ch);
-        //strcat(certificate, ch);
-        //strcpy(certificate, ch);
+        certificate[i] = ch;
+        i++;
     }
-    
+    /* Reading our private key from the file */
+    i = 0;
     while((ch = fgetc(fp_key) ) != EOF) {
-        printf("%c",ch);
-        //strcat(private_key, ch);
-        //strcpy(private_key, ch);
+        private_key[i] = ch;
+        i++;
     }
 
     /* Closing our files */
     fclose(fp_crt);
     fclose(fp_key);
 
+    /* Printing out the certificate and private key */
+    fprintf(stdout, "%s", certificate);
+    fprintf(stdout, "%s", private_key);
+    fflush(stdout);
 
     /* TODO:
      * We may want to use a certificate file if we self sign the
