@@ -28,6 +28,9 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+/* MACROS */
+#define MAX_LENGTH 9999
+
 /* This variable is 1 while the client is active and becomes 0 after
    a quit command to terminate the client and to clean up the
    connection. */
@@ -248,6 +251,46 @@ int main(int argc, char **argv)
     SSL_library_init();
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
+    /* Loading self-signed certificate */
+    //SSL_CTX_use_PrivateKey();
+    //LoadCertificates(ssl_ctx,,,);
+    FILE *fp_crt, *fp_key;
+    char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
+    memset(certificate, 0, MAX_LENGTH);
+    memset(private_key, 0, MAX_LENGTH);
+
+    /* Testing the input parameters */
+    int i = 0;
+    for(; i < argc; i++) {
+        fprintf(stdout, "i: %d - %s\n", i, argv[i]);
+        fflush(stdout);
+    }
+
+    /* Opening the key files */
+    fp_crt = fopen(argv[3], "r");
+    fp_key = fopen(argv[4], "r");
+    if(fp_crt == NULL || fp_key == NULL) {
+        perror("Error while opening the file.\n");
+        exit(0);
+    }
+
+    /* Reading our key from the files */
+    while((ch = fgetc(fp_crt) ) != EOF) {
+        printf("%c",ch);
+        //strcat(certificate, ch);
+        //strcpy(certificate, ch);
+    }
+    
+    while((ch = fgetc(fp_key) ) != EOF) {
+        printf("%c",ch);
+        //strcat(private_key, ch);
+        //strcpy(private_key, ch);
+    }
+
+    /* Closing our files */
+    fclose(fp_crt);
+    fclose(fp_key);
+
 
     /* TODO:
      * We may want to use a certificate file if we self sign the
