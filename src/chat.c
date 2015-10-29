@@ -252,49 +252,57 @@ int main(int argc, char **argv)
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
     FILE *fp_crt, *fp_key;
-    char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
-    memset(certificate, 0, MAX_LENGTH);
-    memset(private_key, 0, MAX_LENGTH);
-    int i = 0;
+    //char ch, certificate[MAX_LENGTH], private_key[MAX_LENGTH];
+    //memset(certificate, 0, MAX_LENGTH);
+    //memset(private_key, 0, MAX_LENGTH);
+    //int i = 0;
 
     /* Testing the input parameters */
+    /*
     i = 0;
     for(; i < argc; i++) {
         fprintf(stdout, "i: %d - %s\n", i, argv[i]);
         fflush(stdout);
     }
+    */
 
     /* Opening the key file */
-    fp_crt = fopen(argv[3], "r");
+    //fp_crt = fopen(argv[3], "r");
     /* Opening the certificate file */
-    fp_key = fopen(argv[4], "r");
+    //fp_key = fopen(argv[4], "r");
     /* Error reading the files */
+    /*
     if(fp_crt == NULL || fp_key == NULL) {
         perror("Error while opening the file.\n");
         exit(0);
     }
+    */
 
     /* Reading our certificate from the file */
+    /*
     i = 0;
     while((ch = fgetc(fp_crt) ) != EOF) {
         certificate[i] = ch;
         i++;
     }
+    */
     /* Reading our private key from the file */
+    /*
     i = 0;
     while((ch = fgetc(fp_key) ) != EOF) {
         private_key[i] = ch;
         i++;
     }
+    */
 
     /* Closing our files */
-    fclose(fp_crt);
-    fclose(fp_key);
+    //fclose(fp_crt);
+    //fclose(fp_key);
 
     /* Printing out the certificate and private key */
-    fprintf(stdout, "%s", certificate);
-    fprintf(stdout, "%s", private_key);
-    fflush(stdout);
+    //fprintf(stdout, "%s", certificate);
+    //fprintf(stdout, "%s", private_key);
+    //fflush(stdout);
     
     /* Loading self-signed certificate */
     SSL_CTX_set_verify_depth(ssl_ctx, 1);
@@ -306,6 +314,16 @@ int main(int argc, char **argv)
 
     if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[4], SSL_FILETYPE_PEM) <= 0) {
         perror("Error using private key.\n");
+        exit(0);
+    }
+
+    if(SSL_CTX_load_verify_locations(ssl_ctx, argv[5], NULL) <= 0) {
+        perror("Error loading CA.\n");
+        exit(0);
+    }
+
+    if(!SSL_CTX_check_private_key(ssl_ctx)) {
+        perror("Error checking private key.\n");
         exit(0);
     }
 
