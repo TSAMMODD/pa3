@@ -62,7 +62,6 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct connection *conn = (struct connection *) value;
     int fd = *(int *) data;
-
     if(conn->connfd > fd) {
         *(int *)data = conn->connfd;
     }
@@ -91,7 +90,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
     int sizerly = 0;
-    
     if(conn->connfd != -1){
         if(FD_ISSET(conn->connfd, rfds)){
             memset(recvMessage, '\0', strlen(recvMessage));
@@ -238,12 +236,8 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
-        fprintf(stdout, "before - highestFD : %d\n", highestFD);
-        fflush(stdout);
         g_tree_foreach(tree, is_greater_fd, &highestFD);
         g_tree_foreach(tree, fd_set_nodes, &rfds);
-        fprintf(stdout, "after - highestFD : %d\n", highestFD);
-        fflush(stdout);
         
         FD_SET(listen_sock, &rfds);
         if(listen_sock > highestFD) {
