@@ -16,8 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <time.h>
 #include <glib.h>
+#include <arpa/inet.h>
 
 /* Secure socket layer headers */
 #include <openssl/ssl.h>
@@ -61,6 +62,10 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2)
 
 int main(int argc, char **argv)
 {
+    /* Create filepointer for log file */
+    FILE *fp;
+    fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
+    fflush(stdout);
     int sockfd, sock, listen_sock;
     struct sockaddr_in server, client;
     char *str;
@@ -133,7 +138,7 @@ int main(int argc, char **argv)
     for(i; i < MAX_CONNECTIONS; i++){
         connections[i].connfd = -1;
     }
-
+    
     for (;;) {
         fd_set rfds;
         struct timeval tv;
@@ -155,7 +160,9 @@ int main(int argc, char **argv)
         FD_SET(listen_sock, &rfds);
         printf("HighestFD: %d\n", highestFD);       
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
-
+        
+        /* Open file log file. */
+        fp = fopen("src/httpd.log", "a+");
         tv.tv_sec = 5;
         tv.tv_usec = 0;
         if (retval == -1) {
@@ -181,6 +188,18 @@ int main(int argc, char **argv)
                             perror("Accepting ssl error");
                             exit(1);
                         } 
+                        /* Creating the timestamp. */
+                        time_t now;
+                        time(&now);
+                        char buf[sizeof "2011-10-08T07:07:09Z"];
+                        memset(buf, 0, sizeof(buf));
+                        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+                        /* Write info to screen. */
+                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                        fflush(stdout);
+                        /* Write info to file. */
+                        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                        fflush(fp);
                         break;
                     }
                 }
@@ -226,6 +245,8 @@ int main(int argc, char **argv)
             //shutdown(sock, SHUT_RDWR);
             //close(sock);
 
+            /* Close the logfile */
+            fclose(fp);
         } else {
             fprintf(stdout, "No message in five seconds.\n");
             fflush(stdout);
