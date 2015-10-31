@@ -24,12 +24,25 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-
+/* Function that is called when we get a 'bye' message from the client. */
+void bye(FILE *fp, struct sockaddr_in client) {
+    /* Creating the timestamp. */
+    time_t now;
+    time(&now);
+    char buf[sizeof "2011-10-08T07:07:09Z"];
+    memset(buf, 0, sizeof(buf));
+    strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+    /* Write disconnect info to screen. */
+    fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "disconnected");
+    fflush(stdout);
+    /* Write disconnect info to file. */
+    fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "disconnected");
+    fflush(fp);
+}
 
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
-int sockaddr_in_cmp(const void *addr1, const void *addr2)
-{
+int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     const struct sockaddr_in *_addr1 = addr1;
     const struct sockaddr_in *_addr2 = addr2;
 
@@ -50,10 +63,7 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2)
     return 0;
 }
 
-
-
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     /* Create filepointer for log file */
     FILE *fp;
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
@@ -146,10 +156,10 @@ int main(int argc, char **argv)
             char buf[sizeof "2011-10-08T07:07:09Z"];
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-            /* Write info to screen. */
+            /* Write connection info to screen. */
             fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
             fflush(stdout);
-            /* Write info to file. */
+            /* Write connection info to log file. */
             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
             fflush(fp);
 
@@ -194,7 +204,7 @@ int main(int argc, char **argv)
             shutdown(sock, SHUT_RDWR);
             close(sock);
 
-            /* Close the logfile */
+            /* Close the logfile. */
             fclose(fp);
         } else {
             fprintf(stdout, "No message in five seconds.\n");
