@@ -260,96 +260,52 @@ int main(int argc, char **argv) {
             perror("select()");
         } else if (retval > 0) {
             if(FD_ISSET(listen_sock, &rfds)){
-                //for(i = 0; i < MAX_CONNECTIONS; i++){
-                    //if(connections[i].connfd == -1){
-                        struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
-                        struct connection *conn = g_new0(struct connection, 1);
-                        size_t len = sizeof(addr);
+                struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
+                struct connection *conn = g_new0(struct connection, 1);
+                size_t len = sizeof(addr);
 
-                        //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-                        //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
-                        
-                        conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
+                //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+                //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
 
-                        if(conn->connfd < 0){
-                            perror("Error accepting\n");
-                            exit(1);
-                        }
+                conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
 
-                        conn->ssl = SSL_new(ctx);
+                if(conn->connfd < 0){
+                    perror("Error accepting\n");
+                    exit(1);
+                }
 
-                        if(conn->ssl == NULL){
-                            perror("Connections SSL NULL\n");
-                            exit(1);
-                        }
-                        
-                        SSL_set_fd(conn->ssl, conn->connfd);
-                        if(SSL_accept(conn->ssl) < 0){
-                            perror("Accepting ssl error\n");
-                            exit(1);
-                        }
+                conn->ssl = SSL_new(ctx);
 
-                        g_tree_insert(tree, addr, conn);
+                if(conn->ssl == NULL){
+                    perror("Connections SSL NULL\n");
+                    exit(1);
+                }
 
-                        /* Creating the timestamp. */
-                        time_t now;
-                        time(&now);
-                        char buf[sizeof "2011-10-08T07:07:09Z"];
-                        memset(buf, 0, sizeof(buf));
-                        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-                        /* Write info to screen. */
-                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-                        fflush(stdout);
-                        /* Write info to file. */
-                        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-                        fflush(fp);
-                    //}
-                //}
+                SSL_set_fd(conn->ssl, conn->connfd);
+                if(SSL_accept(conn->ssl) < 0){
+                    perror("Accepting ssl error\n");
+                    exit(1);
+                }
+
+                g_tree_insert(tree, addr, conn);
+
+                /* Creating the timestamp. */
+                time_t now;
+                time(&now);
+                char buf[sizeof "2011-10-08T07:07:09Z"];
+                memset(buf, 0, sizeof(buf));
+                strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+                /* Write info to screen. */
+                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fflush(stdout);
+                /* Write info to file. */
+                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fflush(fp);
             }
 
             fprintf(stdout, "fd_set before check conn: %d\n", &rfds);
             fflush(stdout);
             g_tree_foreach(tree, check_connection, &rfds);
-
-            /*
-            for(i = 0; i < MAX_CONNECTIONS; i++){
-                if(connections[i].connfd != -1){
-                    if(FD_ISSET(connections[i].connfd, &rfds)){
-                        int sizerly = 0;
-                        memset(recvMessage, '\0', strlen(recvMessage));
-                        sizerly = SSL_read(connections[i].ssl, recvMessage, sizeof(recvMessage));
-                        if(sizerly < 0 ){
-                            perror("ssl_read fail!\n");
-                            exit(1);
-
-                        }
-                        if(sizerly == 0){
-                            fprintf(stdout, "inside sizerly == 0\n");
-                            fflush(stdout);
-                            SSL_shutdown(connections[i].ssl);
-                            close(connections[i].connfd);
-                            connections[i].connfd = -1;
-                            SSL_free(connections[i].ssl);
-                            break; 
-                        }
-                        recvMessage[sizerly] = '\0';
-                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-                        fflush(stdout);
-
-                        int j = 0;
-                        for(; j < MAX_CONNECTIONS; j++){
-                            if(connections[j].connfd != -1){
-                                sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
-                                if(sizerly < 0){
-                                    perror("Error writing to client");
-                                    exit(1);
-                                }
-                            }
-                        }          
-                    }
-                }
-           } 
-            */
 
             /* Close the logfile. */
             fclose(fp);
