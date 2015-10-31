@@ -36,6 +36,7 @@ struct connection {
 /**/
 gboolean print_tree(gpointer key, gpointer value, gpointer data) {
     fprintf(stdout, "inside print tree!\n");
+    fprintf(stdout, "connfd: %d\n", data);
     fflush(stdout);
 } 
 
