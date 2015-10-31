@@ -170,8 +170,8 @@ int main(int argc, char **argv) {
     SSL *ssl;
     const SSL_METHOD *method = SSLv3_server_method();
 
-    X509 *client_cert = NULL;
-    short int s_port = 1337;    
+    //X509 *client_cert = NULL;
+    //short int s_port = 1337;    
 
     /* Initialize OpenSSL */
     /* Load encryption & hash algorithms for SSL */
@@ -226,7 +226,6 @@ int main(int argc, char **argv) {
 
     //struct connection connections[MAX_CONNECTIONS];
     tree = g_tree_new(sockaddr_in_cmp);
-    int i = 0;
 
     for (;;) {
         fd_set rfds;
