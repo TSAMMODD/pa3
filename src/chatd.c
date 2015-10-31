@@ -28,6 +28,9 @@
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 
+/*  */
+static GTree* tree;
+
 /**/
 struct connection {
     int connfd;
@@ -60,6 +63,21 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
+gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
+    struct connection *conn = (struct connection *) value;
+    char *recvMessage = (char *) data;
+    int sizerly = 0;
+    if(conn->connfd != -1) {
+        sizerly = SSL_write(conn->ssl, recvMessage, strlen(recvMessage));
+        if(sizerly < 0){
+            perror("Error writing to client");
+            exit(1);
+        }
+
+    } 
+    return FALSE;
+}
+
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct connection *conn = (struct connection *) value;
@@ -84,19 +102,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             recvMessage[sizerly] = '\0';
             fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
             fflush(stdout);
-
-            /*
-            int j = 0;
-            for(; j < MAX_CONNECTIONS; j++){
-                if(connections[j].connfd != -1){
-                    sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
-                    if(sizerly < 0){
-                        perror("Error writing to client");
-                        exit(1);
-                    }
-                }
-            }
-            */          
+            g_tree_foreach(tree, send_to_all, recvMessage);
         }
     }
     return FALSE;
@@ -211,17 +217,11 @@ int main(int argc, char **argv) {
     }
 
     client_len = sizeof(client);
-    listen(listen_sock, 5);
+    listen(listen_sock, 30);
 
     //struct connection connections[MAX_CONNECTIONS];
-    GTree* tree = g_tree_new(sockaddr_in_cmp);
+    tree = g_tree_new(sockaddr_in_cmp);
     int i = 0;
-    /*
-    int i = 0;
-    for(; i < MAX_CONNECTIONS; i++){
-        connections[i].connfd = -1;
-    }
-    */
 
     for (;;) {
         fd_set rfds;
