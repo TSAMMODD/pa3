@@ -25,7 +25,6 @@
 #include <openssl/err.h>
 
 /* Macros */
-#define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 
@@ -47,17 +46,21 @@ gboolean print_tree(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
-    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
+    fprintf(stdout, "fd_set_nodes before check conn->connfd : %d\n", conn->connfd);    
+    fflush(stdout);
     if(conn->connfd != -1) {
+        fprintf(stdout, "fd_set_nodes inside conn->connfd != -1\n");    
+        fflush(stdout);
         FD_SET(conn->connfd, rfds);
     }
+
+    return FALSE;
 } 
 
 /**/
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
-    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     int fd = *(int *) data;
 
@@ -69,7 +72,6 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
 } 
 
 gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
-    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     char *recvMessage = (char *) data;
     int sizerly = 0;
@@ -86,7 +88,6 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
-    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
@@ -170,7 +171,7 @@ int main(int argc, char **argv) {
 
     SSL_CTX *ctx;
     SSL *ssl;
-    const SSL_METHOD *method = SSLv3_server_method();
+    SSL_METHOD *method = SSLv3_server_method();
 
     X509 *client_cert = NULL;
     short int s_port = 1337;    
@@ -240,8 +241,12 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
+        fprintf(stdout, "before - highestFD : %d\n", highestFD);
+        fflush(stdout);
         g_tree_foreach(tree, is_greater_fd, &highestFD);
         g_tree_foreach(tree, fd_set_nodes, &rfds);
+        fprintf(stdout, "after - highestFD : %d\n", highestFD);
+        fflush(stdout);
         
         FD_SET(listen_sock, &rfds);
         if(listen_sock > highestFD) {
