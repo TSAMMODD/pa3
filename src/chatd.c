@@ -23,6 +23,14 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#define MAX_CONNECTIONS 5
+
+
+struct connection {
+    int connfd;
+    SSL *ssl;
+};
+
 
 
 /* This can be used to build instances of GTree that index on
@@ -119,72 +127,104 @@ int main(int argc, char **argv)
 
     client_len = sizeof(client);
     listen(listen_sock, 5);
+
+    struct connection connections[MAX_CONNECTIONS];
+    int i = 0;
+    for(i; i < MAX_CONNECTIONS; i++){
+        connections[i].connfd = -1;
+    }
+
     for (;;) {
         fd_set rfds;
         struct timeval tv;
         int retval;
 
         FD_ZERO(&rfds);
-        FD_SET(sock, &rfds);
+
+        int highestFD = listen_sock;
+
+        for(i = 0; i < MAX_CONNECTIONS; i++){
+            if(connections[i].connfd != -1){
+                FD_SET(connections[i].connfd, &rfds);
+                if(highestFD < connections[i].connfd){
+                    highestFD = connections[i].connfd;
+                }
+            }
+        }
+
+        FD_SET(listen_sock, &rfds);
+        printf("HighestFD: %d\n", highestFD);       
+        retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
 
         tv.tv_sec = 5;
         tv.tv_usec = 0;
-        sock = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-        if (sock == -1) {
+        if (retval == -1) {
             perror("select()");
-        } else if (sock > 0) {
+        } else if (retval > 0) {
+            
+            if(FD_ISSET(listen_sock, &rfds)){
+                for(i = 0; i < MAX_CONNECTIONS; i++){
+                    if(connections[i].connfd == -1){
+                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+                        if(connections[i].connfd < 0){
+                            perror("Error accepting\n");
+                            exit(1);
+                        }
+                        fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);            
+                        connections[i].ssl = SSL_new(ctx);
+                        if(connections[i].ssl == NULL){
+                            perror("Connections SSL NULL");
+                            exit(1);
+                        }
+                        SSL_set_fd(connections[i].ssl, connections[i].connfd);
+                        if(SSL_accept(connections[i].ssl) < 0){
+                            perror("Accepting ssl error");
+                            exit(1);
+                        } 
+                        break;
+                    }
+                }
+            }
+            
+            for(i = 0; i < MAX_CONNECTIONS; i++){
+                if(connections[i].connfd != -1){
+                    if(FD_ISSET(connections[i].connfd, &rfds)){
+                        int sizerly = 0;
+                        memset(recvMessage, '\0', strlen(recvMessage));
+                        sizerly = SSL_read(connections[i].ssl, recvMessage, sizeof(recvMessage));
+                        if(sizerly < 0 ){
+                            perror("ssl_read fail!\n");
+                            exit(1);
+                        
+                        }
+                        if(sizerly == 0){
+                            SSL_shutdown(connections[i].ssl);
+                            close(connections[i].connfd);
+                            connections[i].connfd = -1;
+                            SSL_free(connections[i].ssl);
+                            break; 
+                        }
+                        recvMessage[sizerly] = '\0';
+                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+                        fflush(stdout);
 
-
-
-            if(sock < 0){
-                perror("Error accepting\n");
-                exit(1);
+                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet l    ittle twat\n"));
+                        if(sizerly < 0){
+                            perror("Error writing to client");
+                            exit(1);
+                        }
+                    }
+                }
             }
 
 
-            fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
-
-            ssl = SSL_new(ctx);
-
-            if(ssl == NULL){
-                perror("SSL == NULL\n");
-                exit(1);
-            }
-
-            SSL_set_fd(ssl, sock);
-
-            if(SSL_accept(ssl) < 0){
-                perror("Accepting ssl error");
-                exit(1);
-            }
-
-            int sizerly = 0;
-            memset(recvMessage, '\0', strlen(recvMessage));
-            sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
-            if(sizerly < 0 ){
-                perror("ssl_read fail!\n");
-                exit(1);
-            }
-            recvMessage[sizerly] = '\0';
-
-            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-            fflush(stdout);
-
-            sizerly = SSL_write(ssl, "Message from server you sweet little twat", strlen("Message from server you sweet little twat\n"));
-
-
-            if(sizerly < 0){
-                perror("Error writing to client");
-                exit(1);
-            }
-
-            SSL_shutdown(ssl);
-            close(sock);
-            SSL_free(ssl);
+            //SSL_shutdown(ssl);
+            //close(sock);
+            //SSL_free(ssl);
             //SSL_CTX_free(ctx);  
 
-            shutdown(sock, SHUT_RDWR);
-            close(sock);
+            //shutdown(sock, SHUT_RDWR);
+            //close(sock);
 
         } else {
             fprintf(stdout, "No message in five seconds.\n");
