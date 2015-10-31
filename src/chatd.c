@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     char recvMessage[8196];
 
     SSL_CTX *ctx;
-    SSL    *ssl;
+    SSL *ssl;
     SSL_METHOD *method;
 
     X509 *client_cert = NULL;
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
     /* Load the error strings for good error reporting */
     SSL_load_error_strings();
 
-    method = SSLv3_method();
+    method = SSLv3_server_method();
 
     ctx = SSL_CTX_new(method);    
 
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
                         fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
                         fflush(stdout);
 
-                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet l    ittle twat\n"));
+                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet little twat\n"));
                         if(sizerly < 0){
                             perror("Error writing to client");
                             exit(1);

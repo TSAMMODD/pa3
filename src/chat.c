@@ -37,7 +37,6 @@
    connection. */
 static int active = 1;
 
-
 /* To read a password without echoing it to the console.
  *
  * We assume that stdin is not redirected to a pipe and we won't
@@ -242,7 +241,8 @@ void readline_callback(char *line)
     }
     /* Sent the buffer to the server. */
     snprintf(buffer, 255, "Message: %s\n", line);
-    write(STDOUT_FILENO, buffer, strlen(buffer));
+    SSL_write(server_ssl, line, strlen(line));
+    //write(STDOUT_FILENO, buffer, strlen(buffer));
     fsync(STDOUT_FILENO);
 }
 
@@ -254,7 +254,6 @@ int main(int argc, char **argv)
     /* Load the error strings for good error reporting */
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx;
-    SSL *server_ssl;
     X509 *server_cert;
     EVP_PKEY *pkey;
     short int s_sport = argv[2];
@@ -374,9 +373,8 @@ int main(int argc, char **argv)
         fprintf(stdout, "Server has no certificate!\n");
         fflush(stdout);
     }
-
-    fprintf(stdout, "4SEGG THIS BITCH\n");
-    fflush(stdout);
+    
+    /*
     if(SSL_write(server_ssl, "roflol how in the hell????", sizeof("roflol how in the hell????")) < 0) {
         perror("Error sending message to client.\n");
         exit(0);
@@ -393,36 +391,30 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "Received %d characters:\n '%s\n'", sizesrly, recvMessage);
     fflush(stdout);
+    */
+    
 
+    /*
     if(SSL_shutdown(server_ssl) < 0){
         perror("Error shutting down SSL\n");
         exit(1);
     }
-
+    */
+    /*
     if(close(sockfd) < 0){
         perror("Error closing socket");
         exit(1);
     }
+    */
+    //SSL_free(server_ssl);
 
-    SSL_free(server_ssl);
-
-    SSL_CTX_free(ssl_ctx);
-
-    if(1){
-        fprintf(stdout, "Goodbye Bitch\n");
-        fflush(stdout);
-        exit(0);
-    }
+    //SSL_CTX_free(ssl_ctx);
 
     // DeadCode DanniBen elskar þetta!
 
-    /* Before we can accept messages, we have to listen to the port. We allow one
-     * 1 connection to queue for simplicity.
-     */
+    /* Before we can accept messages, we have to listen to the port. */
     listen(sockfd, 1);
 
-    /* Use the socket for the SSL connection. */
-    SSL_set_fd(server_ssl, server_fd);
 
     /* Now we can create BIOs and use them instead of the socket.
      * The BIO is responsible for maintaining the state of the
@@ -441,13 +433,19 @@ int main(int argc, char **argv)
     while (active) {
         fd_set rfds;
         struct timeval timeout;
+        struct timeval timeout2;
 
         FD_ZERO(&rfds);
         FD_SET(STDIN_FILENO, &rfds);
+        FD_SET(sockfd, &rfds);
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
+        int highestFD = sockfd;
+        if(STDIN_FILENO > sockfd){
+            highestFD = STDIN_FILENO;
+        }
 
-        int r = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
+        int r = select(highestFD + 1, &rfds, NULL, NULL, &timeout);
         if (r < 0) {
             if (errno == EINTR) {
                 /* This should either retry the call or
@@ -467,11 +465,22 @@ int main(int argc, char **argv)
             rl_redisplay();
             continue;
         }
-        if (FD_ISSET(STDIN_FILENO, &rfds)) {
-            rl_callback_read_char();
+        else{
+            if(FD_ISSET(STDIN_FILENO, &rfds)) {
+                rl_callback_read_char();
+            }
+            if(FD_ISSET(sockfd, &rfds)){
+                memset(recvMessage, '\0', sizeof(recvMessage));
+                int size = SSL_read(server_ssl, recvMessage, sizeof(recvMessage));
+                recvMessage[size] = '\0';
+                write(STDOUT_FILENO, recvMessage, sizeof(recvMessage));
+                fsync(STDOUT_FILENO);                
+            }
         }
-
+                
         /* Handle messages from the server here! */
+
+
     }
     /* replace by code to shutdown the connection and exit
        the program. */
