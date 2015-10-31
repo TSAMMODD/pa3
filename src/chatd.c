@@ -25,7 +25,12 @@
 #include <openssl/err.h>
 
 /* Macros */
+#define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
+#define MAX_LENGTH 9999
+
+/*  */
+static GTree* tree;
 
 /**/
 struct connection {
@@ -34,10 +39,81 @@ struct connection {
 };
 
 /**/
+/*
 gboolean print_tree(gpointer key, gpointer value, gpointer data) {
-    fprintf(stdout, "inside print tree!\n");
-    fprintf(stdout, "connfd: %d\n", data);
-    fflush(stdout);
+    struct connection *conn = (struct connection *) value;
+}
+*/
+
+/**/
+gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct connection *conn = (struct connection *) value;
+    fd_set *rfds = (fd_set *) data;
+    if(conn->connfd != -1) {
+        FD_SET(conn->connfd, rfds);
+    }
+} 
+
+/**/
+gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct connection *conn = (struct connection *) value;
+    int fd = *(int *) data;
+
+    if(conn->connfd > fd) {
+        *(int *)data = conn->connfd;
+    }
+
+    return FALSE;
+} 
+
+gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct connection *conn = (struct connection *) value;
+    char *recvMessage = (char *) data;
+    int sizerly = 0;
+    if(conn->connfd != -1) {
+        sizerly = SSL_write(conn->ssl, recvMessage, strlen(recvMessage));
+        if(sizerly < 0){
+            perror("Error writing to client");
+            exit(1);
+        }
+    } 
+
+    return FALSE;
+}
+
+/**/
+gboolean check_connection(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct connection *conn = (struct connection *) value;
+    fd_set *rfds = (fd_set *) data;
+    char recvMessage[MAX_LENGTH];
+    int sizerly = 0;
+    
+    if(conn->connfd != -1){
+        if(FD_ISSET(conn->connfd, rfds)){
+            memset(recvMessage, '\0', strlen(recvMessage));
+            sizerly = SSL_read(conn->ssl, recvMessage, sizeof(recvMessage));
+            if(sizerly < 0 ){
+                perror("ssl_read fail!\n");
+                exit(1);
+            }
+            if(sizerly == 0){
+                SSL_shutdown(conn->ssl);
+                close(conn->connfd);
+                conn->connfd = -1;
+                SSL_free(conn->ssl);
+            }
+            recvMessage[sizerly] = '\0';
+            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+            fflush(stdout);
+            g_tree_foreach(tree, send_to_all, recvMessage);
+        }
+    }
+
+    return FALSE;
 } 
 
 /* Function that is called when we get a 'bye' message from the client. */
@@ -64,8 +140,9 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
 
     /* If either of the pointers is NULL or the addresses
        belong to different families, we abort. */
-    g_assert((_addr1 == NULL) || (_addr2 == NULL) ||
-            (_addr1->sin_family != _addr2->sin_family));
+    g_assert(_addr1 != NULL);
+    g_assert(_addr2 != NULL);
+    g_assert(_addr1->sin_family == _addr2->sin_family);
 
     if (_addr1->sin_addr.s_addr < _addr2->sin_addr.s_addr) {
         return -1;
@@ -93,7 +170,7 @@ int main(int argc, char **argv) {
 
     SSL_CTX *ctx;
     SSL *ssl;
-    SSL_METHOD *method;
+    const SSL_METHOD *method = SSLv3_server_method();
 
     X509 *client_cert = NULL;
     short int s_port = 1337;    
@@ -103,8 +180,6 @@ int main(int argc, char **argv) {
     SSL_library_init();
     /* Load the error strings for good error reporting */
     SSL_load_error_strings();
-
-    method = SSLv3_server_method();
 
     ctx = SSL_CTX_new(method);    
 
@@ -149,132 +224,89 @@ int main(int argc, char **argv) {
     }
 
     client_len = sizeof(client);
-    listen(listen_sock, 5);
+    listen(listen_sock, 30);
 
-    struct connection connections[MAX_CONNECTIONS];
-    GTree* tree = g_tree_new(sockaddr_in_cmp);
+    //struct connection connections[MAX_CONNECTIONS];
+    tree = g_tree_new(sockaddr_in_cmp);
     int i = 0;
-    for(; i < MAX_CONNECTIONS; i++){
-        connections[i].connfd = -1;
-    }
 
     for (;;) {
         fd_set rfds;
         struct timeval tv;
         int retval;
+        int highestFD = -1;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
 
         FD_ZERO(&rfds);
 
-        int highestFD = listen_sock;
-
-        for(i = 0; i < MAX_CONNECTIONS; i++){
-            if(connections[i].connfd != -1){
-                FD_SET(connections[i].connfd, &rfds);
-                if(highestFD < connections[i].connfd){
-                    highestFD = connections[i].connfd;
-                }
-            }
-        }
-
+        g_tree_foreach(tree, is_greater_fd, &highestFD);
+        g_tree_foreach(tree, fd_set_nodes, &rfds);
+        
         FD_SET(listen_sock, &rfds);
+        if(listen_sock > highestFD) {
+            highestFD = listen_sock;
+        }
+        
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
 
         /* Open file log file. */
         fp = fopen("src/httpd.log", "a+");
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
-
             if(FD_ISSET(listen_sock, &rfds)){
-                for(i = 0; i < MAX_CONNECTIONS; i++){
-                    if(connections[i].connfd == -1){
-                        struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
-                        size_t len = sizeof(addr);
+                struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
+                struct connection *conn = g_new0(struct connection, 1);
+                size_t len = sizeof(addr);
 
-                        //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
-                        if(connections[i].connfd < 0){
-                            perror("Error accepting\n");
-                            exit(1);
-                        }
-                        connections[i].ssl = SSL_new(ctx);
-                        if(connections[i].ssl == NULL){
-                            perror("Connections SSL NULL");
-                            exit(1);
-                        }
-                        SSL_set_fd(connections[i].ssl, connections[i].connfd);
-                        if(SSL_accept(connections[i].ssl) < 0){
-                            perror("Accepting ssl error");
-                            exit(1);
-                        } 
+                fprintf(stdout, "before accept\n");
+                fflush(stdout);
+                conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
-                        g_tree_insert(tree, addr, &connections[i]);
-
-                        /* Creating the timestamp. */
-                        time_t now;
-                        time(&now);
-                        char buf[sizeof "2011-10-08T07:07:09Z"];
-                        memset(buf, 0, sizeof(buf));
-                        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-                        /* Write info to screen. */
-                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-                        fflush(stdout);
-                        /* Write info to file. */
-                        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-                        fflush(fp);
-                        break;
-                    }
+                if(conn->connfd < 0){
+                    perror("Error accepting\n");
+                    exit(1);
                 }
+
+                conn->ssl = SSL_new(ctx);
+
+                if(conn->ssl == NULL){
+                    perror("Connections SSL NULL\n");
+                    exit(1);
+                }
+
+                SSL_set_fd(conn->ssl, conn->connfd);
+                if(SSL_accept(conn->ssl) < 0){
+                    perror("Accepting ssl error\n");
+                    exit(1);
+                }
+
+                fprintf(stdout, "before insert\n");
+                fprintf(stdout, "sockaddr_in.sin_addr : %s - addr.sin_port : %d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+                fprintf(stdout, "sockaddr_in.sin_family : %d\n", addr->sin_family);
+                fflush(stdout);
+                g_tree_insert(tree, addr, conn);
+                fprintf(stdout, "after insert\n");
+                fflush(stdout);
+
+                /* Creating the timestamp. */
+                time_t now;
+                time(&now);
+                char buf[sizeof "2011-10-08T07:07:09Z"];
+                memset(buf, 0, sizeof(buf));
+                strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+                /* Write info to screen. */
+                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
+                fflush(stdout);
+                /* Write info to file. */
+                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
+                fflush(fp);
             }
 
-            //g_tree_foreach(tree, print_tree, &connections[0]);
-
-            for(i = 0; i < MAX_CONNECTIONS; i++){
-                if(connections[i].connfd != -1){
-                    if(FD_ISSET(connections[i].connfd, &rfds)){
-                        int sizerly = 0;
-                        memset(recvMessage, '\0', strlen(recvMessage));
-                        sizerly = SSL_read(connections[i].ssl, recvMessage, sizeof(recvMessage));
-                        if(sizerly < 0 ){
-                            perror("ssl_read fail!\n");
-                            exit(1);
-
-                        }
-                        if(sizerly == 0){
-                            SSL_shutdown(connections[i].ssl);
-                            close(connections[i].connfd);
-                            connections[i].connfd = -1;
-                            SSL_free(connections[i].ssl);
-                            break; 
-                        }
-                        recvMessage[sizerly] = '\0';
-                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-                        fflush(stdout);
-
-                        int j = 0;
-                        for(; j < MAX_CONNECTIONS; j++){
-                            if(connections[j].connfd != -1){
-                                sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
-                                if(sizerly < 0){
-                                    perror("Error writing to client");
-                                    exit(1);
-                                }
-                            }
-                        }          
-                    }
-                }
-           } 
-
-
-            //SSL_shutdown(ssl);
-            //close(sock);
-            //SSL_free(ssl);
-            //SSL_CTX_free(ctx);  
-
-            //shutdown(sock, SHUT_RDWR);
-            //close(sock);
+            fprintf(stdout, "fd_set before check conn: %d\n", &rfds);
+            fflush(stdout);
+            g_tree_foreach(tree, check_connection, &rfds);
 
             /* Close the logfile. */
             fclose(fp);
