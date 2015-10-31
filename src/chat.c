@@ -272,7 +272,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    
+
     server_ssl = SSL_new(ssl_ctx);
 
     /* Loading CA from the CA file and verify the certificate from the server */
@@ -280,7 +280,7 @@ int main(int argc, char **argv)
         perror("Error loading CA.\n");
         exit(0);
     }
-    
+
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 
     SSL_CTX_set_verify_depth(ssl_ctx, 1);
@@ -311,27 +311,25 @@ int main(int argc, char **argv)
     memset(&server, '\0', sizeof(server));
     server.sin_family = AF_INET;
     /* Network functions need arguments in network byte order instead of 
-        host byte order. The macros htonl, htons convert the values */
+       host byte order. The macros htonl, htons convert the values */
     //server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_port = htons(atoi(argv[2]));
     //bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
-    
+
     int i = 0;
     for(; i < argc; i++) {
         fprintf(stdout, "i: %d - %s\n", i, argv[i]);
         fflush(stdout);
     }
-    
-fprintf(stdout, "1SEGG THIS BITCH\n");
-fflush(stdout);
+
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
         exit(0);
     }
 
     server_ssl = SSL_new(ssl_ctx);
-    
+
     if(server_ssl == NULL){
         perror("server_ssl == NULL\n");
         exit(1);
@@ -350,20 +348,15 @@ fflush(stdout);
         exit(1);
     }
 
-   
-fprintf(stdout, "22SEGG THIS BITCH\n");
-fflush(stdout); 
     fprintf(stdout, "Turing would never use %s\n", SSL_get_cipher(server_ssl));
     fflush(stdout);
 
-fprintf(stdout, "3SEGG THIS BITCH\n");
-fflush(stdout);
     server_cert = SSL_get_peer_certificate(server_ssl);
 
     if(server_cert != NULL){
         fprintf(stdout, "Server Certificate:\n");
         fflush(stdout);
-        
+
         str = X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
 
         if(str == NULL){
@@ -375,15 +368,15 @@ fflush(stdout);
         fflush(stdout);
         free(str);
         X509_free(server_cert);
-        
+
     }
     else{
         fprintf(stdout, "Server has no certificate!\n");
         fflush(stdout);
     }
 
-fprintf(stdout, "4SEGG THIS BITCH\n");
-fflush(stdout);
+    fprintf(stdout, "4SEGG THIS BITCH\n");
+    fflush(stdout);
     if(SSL_write(server_ssl, "roflol how in the hell????", sizeof("roflol how in the hell????")) < 0) {
         perror("Error sending message to client.\n");
         exit(0);
@@ -422,7 +415,7 @@ fflush(stdout);
     }
 
     // DeadCode DanniBen elskar þetta!
-    
+
 
 
 
@@ -442,7 +435,7 @@ fflush(stdout);
      */
 
     /* Set up secure connection to the chatd server. */
-    
+
 
     /* Read characters from the keyboard while waiting for input.
     */
