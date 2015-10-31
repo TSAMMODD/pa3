@@ -171,13 +171,12 @@ int main(int argc, char **argv)
             }
 
             int sizerly = 0;
-
+            memset(recvMessage, '\0', strlen(recvMessage));
             sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
             if(sizerly < 0 ){
                 perror("ssl_read fail!\n");
                 exit(1);
             }
-
             recvMessage[sizerly] = '\0';
 
             fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
