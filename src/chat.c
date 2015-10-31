@@ -472,8 +472,8 @@ int main(int argc, char **argv)
             if(FD_ISSET(sockfd, &rfds)){
                 memset(recvMessage, '\0', sizeof(recvMessage));
                 int size = SSL_read(server_ssl, recvMessage, sizeof(recvMessage));
-                recvMessage[size] = '\0';
-                write(STDOUT_FILENO, recvMessage, sizeof(recvMessage));
+                strcat(recvMessage, "\n>");
+                write(STDOUT_FILENO, recvMessage, strlen(recvMessage));
                 fsync(STDOUT_FILENO);                
             }
         }

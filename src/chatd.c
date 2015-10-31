@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
         }
 
         FD_SET(listen_sock, &rfds);
-        printf("HighestFD: %d\n", highestFD);       
+        //printf("HighestFD: %d\n", highestFD);       
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
         
         /* Open file log file. */
@@ -234,13 +234,17 @@ int main(int argc, char **argv) {
                             break; 
                         }
                         recvMessage[sizerly] = '\0';
-                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+                        fprintf(stdout, "Received %d characters from client:\n '%s'\n", sizerly, recvMessage);
                         fflush(stdout);
-
-                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet little twat\n"));
-                        if(sizerly < 0){
-                            perror("Error writing to client");
-                            exit(1);
+                        int j = 0;
+                        for(; j < MAX_CONNECTIONS; j++){
+                            if(connections[j].connfd != -1){
+                                sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
+                                if(sizerly < 0){
+                                    perror("Error writing to client");
+                                    exit(1);
+                                }
+                            }
                         }
                     }
                 }
