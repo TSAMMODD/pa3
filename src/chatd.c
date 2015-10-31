@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <time.h>
 #include <glib.h>
 
 /* Secure socket layer headers */
@@ -53,6 +53,10 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2)
 
 int main(int argc, char **argv)
 {
+    /* Create filepointer for log file */
+    FILE *fp;
+    fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
+    fflush(stdout);
     int sockfd, sock, listen_sock;
     struct sockaddr_in server, client;
     char *str;
@@ -133,16 +137,24 @@ int main(int argc, char **argv)
         if (sock == -1) {
             perror("select()");
         } else if (sock > 0) {
-
-
-
-            if(sock < 0){
-                perror("Error accepting\n");
-                exit(1);
-            }
-
+            /* Open file log file. */
+            fp = fopen("src/httpd.log", "a+");
+            /* Creating the timestamp. */
+            time_t now;
+            time(&now);
+            char buf[sizeof "2011-10-08T07:07:09Z"];
+            memset(buf, 0, sizeof(buf));
+            strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+            /* Write info to screen. */
+            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+            fflush(stdout);
+            /* Write info to file. */
+            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+            fflush(fp);
+            
 
             fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
+            fflush(stdout);
 
             ssl = SSL_new(ctx);
 
@@ -171,8 +183,7 @@ int main(int argc, char **argv)
             fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
             fflush(stdout);
 
-            sizerly = SSL_write(ssl, "Message from server you sweet little twat\n", strlen("Message from server you sweet little twat\n"));
-
+            sizerly = SSL_write(ssl, "Welcome\n", strlen("Welcome\n"));
 
             if(sizerly < 0){
                 perror("Error writing to client");
@@ -187,6 +198,8 @@ int main(int argc, char **argv)
             shutdown(sock, SHUT_RDWR);
             close(sock);
 
+            /* Close the logfile */
+            fclose(fp);
         } else {
             fprintf(stdout, "No message in five seconds.\n");
             fflush(stdout);

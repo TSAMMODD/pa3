@@ -422,9 +422,6 @@ fflush(stdout);
     }
 
     // DeadCode DanniBen elskar þetta!
-    
-
-
 
     /* Before we can accept messages, we have to listen to the port. We allow one
      * 1 connection to queue for simplicity.
