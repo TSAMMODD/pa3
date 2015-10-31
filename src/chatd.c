@@ -42,7 +42,7 @@ struct connection {
 /*
 gboolean print_tree(gpointer key, gpointer value, gpointer data) {
     struct connection *conn = (struct connection *) value;
-} 
+}
 */
 
 /**/
@@ -79,8 +79,8 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
             perror("Error writing to client");
             exit(1);
         }
-
     } 
+
     return FALSE;
 }
 
@@ -112,6 +112,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             g_tree_foreach(tree, send_to_all, recvMessage);
         }
     }
+
     return FALSE;
 } 
 
@@ -232,24 +233,15 @@ int main(int argc, char **argv) {
         fd_set rfds;
         struct timeval tv;
         int retval;
+        int highestFD = -1;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
 
         FD_ZERO(&rfds);
 
-        int highestFD = -1;
         g_tree_foreach(tree, is_greater_fd, &highestFD);
         g_tree_foreach(tree, fd_set_nodes, &rfds);
-
-        /*
-        for(i = 0; i < MAX_CONNECTIONS; i++){
-            if(connections[i].connfd != -1){
-                FD_SET(connections[i].connfd, &rfds);
-                if(highestFD < connections[i].connfd){
-                    highestFD = connections[i].connfd;
-                }
-            }
-        }
-        */
-
+        
         FD_SET(listen_sock, &rfds);
         if(listen_sock > highestFD) {
             highestFD = listen_sock;
@@ -259,8 +251,6 @@ int main(int argc, char **argv) {
 
         /* Open file log file. */
         fp = fopen("src/httpd.log", "a+");
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
@@ -269,10 +259,9 @@ int main(int argc, char **argv) {
                 struct connection *conn = g_new0(struct connection, 1);
                 size_t len = sizeof(addr);
 
-                //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-                //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
-
-                conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
+                fprintf(stdout, "before accept\n");
+                fflush(stdout);
+                conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
                 if(conn->connfd < 0){
                     perror("Error accepting\n");
@@ -292,7 +281,13 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
 
+                fprintf(stdout, "before insert\n");
+                fprintf(stdout, "sockaddr_in.sin_addr : %s - addr.sin_port : %d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+                fprintf(stdout, "sockaddr_in.sin_family : %d\n", addr->sin_family);
+                fflush(stdout);
                 g_tree_insert(tree, addr, conn);
+                fprintf(stdout, "after insert\n");
+                fflush(stdout);
 
                 /* Creating the timestamp. */
                 time_t now;
@@ -301,10 +296,10 @@ int main(int argc, char **argv) {
                 memset(buf, 0, sizeof(buf));
                 strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
                 /* Write info to screen. */
-                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
                 fflush(stdout);
                 /* Write info to file. */
-                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
                 fflush(fp);
             }
 
