@@ -24,6 +24,15 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+/* Macros */
+#define MAX_CONNECTIONS 5
+
+/**/
+struct connection {
+    int connfd;
+    SSL *ssl;
+};
+
 /* Function that is called when we get a 'bye' message from the client. */
 void bye(FILE *fp, struct sockaddr_in client) {
     /* Creating the timestamp. */
@@ -134,12 +143,20 @@ int main(int argc, char **argv) {
 
     client_len = sizeof(client);
     listen(listen_sock, 5);
+
+    struct connection connections[MAX_CONNECTIONS];
+    int i = 0;
+    for(i; i < MAX_CONNECTIONS; i++){
+        connections[i].connfd = -1;
+    }
+    
     for (;;) {
         fd_set rfds;
         struct timeval tv;
         int retval;
 
         FD_ZERO(&rfds);
+<<<<<<< HEAD
         FD_SET(sock, &rfds);
 
         tv.tv_sec = 5;
@@ -162,47 +179,107 @@ int main(int argc, char **argv) {
             /* Write connection info to log file. */
             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
             fflush(fp);
+=======
+>>>>>>> 0ad43bd138673b8248468a7e2111196d31cfbdb5
 
-            ssl = SSL_new(ctx);
+        int highestFD = listen_sock;
 
-            if(ssl == NULL){
-                perror("SSL == NULL\n");
-                exit(1);
+        for(i = 0; i < MAX_CONNECTIONS; i++){
+            if(connections[i].connfd != -1){
+                FD_SET(connections[i].connfd, &rfds);
+                if(highestFD < connections[i].connfd){
+                    highestFD = connections[i].connfd;
+                }
+            }
+        }
+
+        FD_SET(listen_sock, &rfds);
+        printf("HighestFD: %d\n", highestFD);       
+        retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
+        
+        /* Open file log file. */
+        fp = fopen("src/httpd.log", "a+");
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+        if (retval == -1) {
+            perror("select()");
+        } else if (retval > 0) {
+            
+            if(FD_ISSET(listen_sock, &rfds)){
+                for(i = 0; i < MAX_CONNECTIONS; i++){
+                    if(connections[i].connfd == -1){
+                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+                        if(connections[i].connfd < 0){
+                            perror("Error accepting\n");
+                            exit(1);
+                        }
+                        fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);            
+                        connections[i].ssl = SSL_new(ctx);
+                        if(connections[i].ssl == NULL){
+                            perror("Connections SSL NULL");
+                            exit(1);
+                        }
+                        SSL_set_fd(connections[i].ssl, connections[i].connfd);
+                        if(SSL_accept(connections[i].ssl) < 0){
+                            perror("Accepting ssl error");
+                            exit(1);
+                        } 
+                        /* Creating the timestamp. */
+                        time_t now;
+                        time(&now);
+                        char buf[sizeof "2011-10-08T07:07:09Z"];
+                        memset(buf, 0, sizeof(buf));
+                        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+                        /* Write info to screen. */
+                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                        fflush(stdout);
+                        /* Write info to file. */
+                        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                        fflush(fp);
+                        break;
+                    }
+                }
+            }
+            
+            for(i = 0; i < MAX_CONNECTIONS; i++){
+                if(connections[i].connfd != -1){
+                    if(FD_ISSET(connections[i].connfd, &rfds)){
+                        int sizerly = 0;
+                        memset(recvMessage, '\0', strlen(recvMessage));
+                        sizerly = SSL_read(connections[i].ssl, recvMessage, sizeof(recvMessage));
+                        if(sizerly < 0 ){
+                            perror("ssl_read fail!\n");
+                            exit(1);
+                        
+                        }
+                        if(sizerly == 0){
+                            SSL_shutdown(connections[i].ssl);
+                            close(connections[i].connfd);
+                            connections[i].connfd = -1;
+                            SSL_free(connections[i].ssl);
+                            break; 
+                        }
+                        recvMessage[sizerly] = '\0';
+                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+                        fflush(stdout);
+
+                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet l    ittle twat\n"));
+                        if(sizerly < 0){
+                            perror("Error writing to client");
+                            exit(1);
+                        }
+                    }
+                }
             }
 
-            SSL_set_fd(ssl, sock);
 
-            if(SSL_accept(ssl) < 0){
-                perror("Accepting ssl error");
-                exit(1);
-            }
-
-            int sizerly = 0;
-            memset(recvMessage, '\0', strlen(recvMessage));
-            sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
-            if(sizerly < 0 ){
-                perror("ssl_read fail!\n");
-                exit(1);
-            }
-            recvMessage[sizerly] = '\0';
-
-            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-            fflush(stdout);
-
-            sizerly = SSL_write(ssl, "Welcome\n", strlen("Welcome\n"));
-
-            if(sizerly < 0){
-                perror("Error writing to client");
-                exit(1);
-            }
-
-            SSL_shutdown(ssl);
-            close(sock);
-            SSL_free(ssl);
+            //SSL_shutdown(ssl);
+            //close(sock);
+            //SSL_free(ssl);
             //SSL_CTX_free(ctx);  
 
-            shutdown(sock, SHUT_RDWR);
-            close(sock);
+            //shutdown(sock, SHUT_RDWR);
+            //close(sock);
 
             /* Close the logfile. */
             fclose(fp);
