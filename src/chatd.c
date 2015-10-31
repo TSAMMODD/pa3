@@ -117,94 +117,77 @@ int main(int argc, char **argv)
 
     client_len = sizeof(client);
     listen(listen_sock, 5);
-    /*for (;;) {
-      fd_set rfds;
-      struct timeval tv;
-      int retval;
+    for (;;) {
+        fd_set rfds;
+        struct timeval tv;
+        int retval;
 
-      FD_ZERO(&rfds);
-      FD_SET(sock, &rfds);
+        FD_ZERO(&rfds);
+        FD_SET(sock, &rfds);
 
-      tv.tv_sec = 5;
-      tv.tv_usec = 0;
-      retval = select(listen_sock + 1, &rfds, NULL, NULL, &tv);
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+        sock = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+        if (sock == -1) {
+            perror("select()");
+        } else if (sock > 0) {
 
-      if (retval == -1) {
-      perror("select()");
-      } else if (retval > 0) {
-      */
 
-    sock = accept(listen_sock, (struct sockaddr*) &client, &client_len);
 
-    if(sock < 0){
-        perror("Error accepting\n");
-        exit(1);
+            if(sock < 0){
+                perror("Error accepting\n");
+                exit(1);
+            }
+
+
+            fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
+
+            ssl = SSL_new(ctx);
+
+            if(ssl == NULL){
+                perror("SSL == NULL\n");
+                exit(1);
+            }
+
+            SSL_set_fd(ssl, sock);
+
+            if(SSL_accept(ssl) < 0){
+                perror("Accepting ssl error");
+                exit(1);
+            }
+
+            int sizerly = 0;
+
+            sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
+            if(sizerly < 0 ){
+                perror("ssl_read fail!\n");
+                exit(1);
+            }
+
+            recvMessage[sizerly] = '\0';
+
+            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+            fflush(stdout);
+
+            sizerly = SSL_write(ssl, "Message from server you sweet little twat\n", strlen("Message from server you sweet little twat\n"));
+
+
+            if(sizerly < 0){
+                perror("Error writing to client");
+                exit(1);
+            }
+
+            SSL_shutdown(ssl);
+            close(sock);
+            SSL_free(ssl);
+            //SSL_CTX_free(ctx);  
+
+            shutdown(sock, SHUT_RDWR);
+            close(sock);
+
+        } else {
+            fprintf(stdout, "No message in five seconds.\n");
+            fflush(stdout);
+        }
     }
-
-    close(listen_sock);
-
-    fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
-
-    ssl = SSL_new(ctx);
-
-    if(ssl == NULL){
-        perror("SSL == NULL\n");
-        exit(1);
-    }
-
-    SSL_set_fd(ssl, sock);
-
-    if(SSL_accept(ssl) < 0){
-        perror("Accepting ssl error");
-        exit(1);
-    }
-
-    int sizerly = 0;
-
-    sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
-    if(sizerly < 0 ){
-        perror("ssl_read fail!\n");
-        exit(1);
-    }
-
-    recvMessage[sizerly] = '\0';
-
-    fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-    fflush(stdout);
-
-    sizerly = SSL_write(ssl, "Message from server you sweet little twat\n", strlen("Message from server you sweet little twat\n"));
-
-
-    if(sizerly < 0){
-        perror("Error writing to client");
-        exit(1);
-    }
-
-    SSL_shutdown(ssl);
-    close(sock);
-    SSL_free(ssl);
-    SSL_CTX_free(ctx);  
-    exit(0);
-    /*
-
-       int connfd;
-       connfd = accept(sockfd, (struct sockaddr *) &client,
-       &client_len);
-
-       ssize_t n = read(connfd, message, sizeof(message) - 1);
-
-       write(connfd, message, (size_t) n);
-
-       shutdown(connfd, SHUT_RDWR);
-       close(connfd);
-
-       message[n] = '\0';
-       fprintf(stdout, "Received:\n%s\n", message);
-       fflush(stdout);
-       } else {
-       fprintf(stdout, "No message in five seconds.\n");
-       fflush(stdout);
-       }
-       }
-       */
 }
