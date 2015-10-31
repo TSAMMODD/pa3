@@ -3,3 +3,4 @@ src/chat.o
 src/chatd
 src/chatd.o
 *.swp
+src/httpd.log
