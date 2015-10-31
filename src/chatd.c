@@ -156,31 +156,6 @@ int main(int argc, char **argv) {
         int retval;
 
         FD_ZERO(&rfds);
-<<<<<<< HEAD
-        FD_SET(sock, &rfds);
-
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
-        sock = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-        if (sock == -1) {
-            perror("select()");
-        } else if (sock > 0) {
-            /* Open file log file. */
-            fp = fopen("src/httpd.log", "a+");
-            /* Creating the timestamp. */
-            time_t now;
-            time(&now);
-            char buf[sizeof "2011-10-08T07:07:09Z"];
-            memset(buf, 0, sizeof(buf));
-            strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-            /* Write connection info to screen. */
-            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-            fflush(stdout);
-            /* Write connection info to log file. */
-            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
-            fflush(fp);
-=======
->>>>>>> 0ad43bd138673b8248468a7e2111196d31cfbdb5
 
         int highestFD = listen_sock;
 
