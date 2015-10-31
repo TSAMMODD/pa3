@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 
     struct connection connections[MAX_CONNECTIONS];
     int i = 0;
-    for(i; i < MAX_CONNECTIONS; i++){
+    for(; i < MAX_CONNECTIONS; i++){
         connections[i].connfd = -1;
     }
     
@@ -188,7 +188,6 @@ int main(int argc, char **argv) {
                             perror("Error accepting\n");
                             exit(1);
                         }
-                        fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);            
                         connections[i].ssl = SSL_new(ctx);
                         if(connections[i].ssl == NULL){
                             perror("Connections SSL NULL");
