@@ -53,100 +53,158 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2)
 
 int main(int argc, char **argv)
 {
+    int sockfd, sock, listen_sock;
+    struct sockaddr_in server, client;
+    char *str;
+    size_t client_len;
+    char message[512];
+    char recvMessage[8196];
+
+    SSL_CTX *ctx;
+    SSL    *ssl;
+    SSL_METHOD *method;
+
+    X509 *client_cert = NULL;
+    short int s_port = 1337;    
+
     /* Initialize OpenSSL */
     SSL_library_init();
     SSL_load_error_strings();
-    SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
 
-    /* Loading self-signed certificate */
-    SSL_CTX_set_verify_depth(ssl_ctx, 1);
-    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
+    method = SSLv3_method();
+
+    ctx = SSL_CTX_new(method);    
+
+    if(!ctx){
+        perror("Error newing ctx\n");
+        exit(1);
+    }
+
     /* Loading certificate from the certificate file */
-    if(SSL_CTX_use_certificate_file(ssl_ctx, argv[2], SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_certificate_file(ctx, argv[2], SSL_FILETYPE_PEM) <= 0) {
         perror("Error loading certificate.\n");
-        exit(0);
+        exit(1);
     }
     /* Loading private key from the private key file */
-    if(SSL_CTX_use_PrivateKey_file(ssl_ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_PrivateKey_file(ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
         perror("Error loading private key.\n");
-        exit(0);
+        exit(1);
     }
 
     /* Verify server's private key */
-    if(!SSL_CTX_check_private_key(ssl_ctx)) {
-        perror("Error checking private key.\n");
-        exit(0);
+    if(!SSL_CTX_check_private_key(ctx)) {
+        perror("Error checking private key, doesn't match cert public key\n");
+        exit(1);
     }
 
-    int sockfd;
-    struct sockaddr_in server, client;
-    char message[512];
+    listen_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    /* Create and bind a TCP socket */
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    memset(&server, 0, sizeof(server));
+    if(listen_sock < 0){
+        perror("Error creating socket listen_sock");
+        exit(1);
+    }
+
+    memset(&server, '\0', sizeof(server));
     server.sin_family = AF_INET;
     /* Network functions need arguments in network byte order instead of
        host byte order. The macros htonl, htons convert the values, */
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_port = htons(atoi(argv[1]));
-    bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
-
-    /* Before we can accept messages, we have to listen to the port. We allow one
-     * 1 connection to queue for simplicity.
-     */
-    listen(sockfd, 1);
-
-    for (;;) {
-        fd_set rfds;
-        struct timeval tv;
-        int retval;
-
-        /* Check whether there is data on the socket fd. */
-        FD_ZERO(&rfds);
-        FD_SET(sockfd, &rfds);
-
-        /* Wait for five seconds. */
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
-        retval = select(sockfd + 1, &rfds, NULL, NULL, &tv);
-
-        if (retval == -1) {
-            perror("select()");
-        } else if (retval > 0) {
-            /* Data is available, receive it. */
-            assert(FD_ISSET(sockfd, &rfds));
-
-            /* Copy to len, since recvfrom may change it. */
-            socklen_t len = (socklen_t) sizeof(client);
-
-            /* For TCP connectios, we first have to accept. */
-            int connfd;
-            connfd = accept(sockfd, (struct sockaddr *) &client,
-                    &len);
-
-            /* Receive one byte less than declared,
-               because it will be zero-termianted
-               below. */
-            ssize_t n = read(connfd, message, sizeof(message) - 1);
-
-            /* Send the message back. */
-            write(connfd, message, (size_t) n);
-
-            /* We should close the connection. */
-            shutdown(connfd, SHUT_RDWR);
-            close(connfd);
-
-            /* Zero terminate the message, otherwise
-               printf may access memory outside of the
-               string. */
-            message[n] = '\0';
-            /* Print the message to stdout and flush. */
-            fprintf(stdout, "Received:\n%s\n", message);
-            fflush(stdout);
-        } else {
-            fprintf(stdout, "No message in five seconds.\n");
-            fflush(stdout);
-        }
+    if(bind(listen_sock, (struct sockaddr *) &server, sizeof(server)) < 0){
+        perror("Error binding socket\n");
+        exit(1);
     }
+
+    client_len = sizeof(client);
+    listen(listen_sock, 5);
+    /*for (;;) {
+      fd_set rfds;
+      struct timeval tv;
+      int retval;
+
+      FD_ZERO(&rfds);
+      FD_SET(sock, &rfds);
+
+      tv.tv_sec = 5;
+      tv.tv_usec = 0;
+      retval = select(listen_sock + 1, &rfds, NULL, NULL, &tv);
+
+      if (retval == -1) {
+      perror("select()");
+      } else if (retval > 0) {
+      */
+
+    sock = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+
+    if(sock < 0){
+        perror("Error accepting\n");
+        exit(1);
+    }
+
+    close(listen_sock);
+
+    fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
+
+    ssl = SSL_new(ctx);
+
+    if(ssl == NULL){
+        perror("SSL == NULL\n");
+        exit(1);
+    }
+
+    SSL_set_fd(ssl, sock);
+
+    if(SSL_accept(ssl) < 0){
+        perror("Accepting ssl error");
+        exit(1);
+    }
+
+    int sizerly = 0;
+
+    sizerly = SSL_read(ssl, recvMessage, sizeof(recvMessage));
+    if(sizerly < 0 ){
+        perror("ssl_read fail!\n");
+        exit(1);
+    }
+
+    recvMessage[sizerly] = '\0';
+
+    fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+    fflush(stdout);
+
+    sizerly = SSL_write(ssl, "Message from server you sweet little twat\n", strlen("Message from server you sweet little twat\n"));
+
+
+    if(sizerly < 0){
+        perror("Error writing to client");
+        exit(1);
+    }
+
+    SSL_shutdown(ssl);
+    close(sock);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);  
+    exit(0);
+    /*
+
+       int connfd;
+       connfd = accept(sockfd, (struct sockaddr *) &client,
+       &client_len);
+
+       ssize_t n = read(connfd, message, sizeof(message) - 1);
+
+       write(connfd, message, (size_t) n);
+
+       shutdown(connfd, SHUT_RDWR);
+       close(connfd);
+
+       message[n] = '\0';
+       fprintf(stdout, "Received:\n%s\n", message);
+       fflush(stdout);
+       } else {
+       fprintf(stdout, "No message in five seconds.\n");
+       fflush(stdout);
+       }
+       }
+       */
 }

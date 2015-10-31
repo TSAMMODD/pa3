@@ -251,15 +251,37 @@ int main(int argc, char **argv)
     /* Initialize OpenSSL */
     SSL_library_init();
     SSL_load_error_strings();
-    SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
-    SSL *server_ssl = SSL_new(ssl_ctx);
+    SSL_CTX *ssl_ctx;
+    SSL *server_ssl;
+    X509 *server_cert;
+    EVP_PKEY *pkey;
+    short int s_sport = argv[2];
+    const char  *server_ip = "127.0.0.1";
+    SSL_METHOD *method;
+    char *str;    
+    char recvMessage[8196];
+    char sendMessage[128];
+
+    method = SSLv3_client_method();
+
+    ssl_ctx = SSL_CTX_new(method);
+    if(ssl_ctx == NULL){
+        perror("Error loading CA.\n");
+        exit(1);
+    }
+
+    
+    server_ssl = SSL_new(ssl_ctx);
 
     /* Loading CA from the CA file and verify the certificate from the server */
     if(SSL_CTX_load_verify_locations(ssl_ctx, argv[5], NULL) <= 0) {
         perror("Error loading CA.\n");
         exit(0);
     }
+    
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 
+    SSL_CTX_set_verify_depth(ssl_ctx, 1);
     /* TODO:
      * We may want to use a certificate file if we self sign the
      * certificates using SSL_use_certificate_file(). If available,
@@ -269,7 +291,6 @@ int main(int argc, char **argv)
      * client.
      */
 
-    server_ssl = SSL_new(ssl_ctx);
 
     /* Create and set up a listening socket. The sockets you
      * create here can be used in select calls, so do not forget
@@ -280,38 +301,128 @@ int main(int argc, char **argv)
     /* Create a sockaddress for server and client */
     struct sockaddr_in server, client;
     /* Create and bind a TCP socket */
-    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         perror("Could not create socket.\n");
         exit(0);
     }
 
-    memset(&server, 0, sizeof(server));
+    memset(&server, '\0', sizeof(server));
     server.sin_family = AF_INET;
     /* Network functions need arguments in network byte order instead of 
         host byte order. The macros htonl, htons convert the values */
     //server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_port = htons(atoi(argv[2]));
-    bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
+    //bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
     
     int i = 0;
     for(; i < argc; i++) {
         fprintf(stdout, "i: %d - %s\n", i, argv[i]);
         fflush(stdout);
     }
-
+    
+fprintf(stdout, "1SEGG THIS BITCH\n");
+fflush(stdout);
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
         exit(0);
     }
 
+    server_ssl = SSL_new(ssl_ctx);
+    
+    if(server_ssl == NULL){
+        perror("server_ssl == NULL\n");
+        exit(1);
+    }
+
     SSL_set_fd(server_ssl, sockfd);
 
 
-    if(SSL_write(server_ssl, "lol", sizeof("lol")) <= 0) {
+    if(server_ssl == NULL){
+        perror("ssl == null\n");
+        exit(1);
+    }    
+
+    if(SSL_connect(server_ssl) == -1){
+        perror("Error SSL_connecting to server\n");
+        exit(1);
+    }
+
+   
+fprintf(stdout, "22SEGG THIS BITCH\n");
+fflush(stdout); 
+    fprintf(stdout, "Turing would never use %s\n", SSL_get_cipher(server_ssl));
+    fflush(stdout);
+
+fprintf(stdout, "3SEGG THIS BITCH\n");
+fflush(stdout);
+    server_cert = SSL_get_peer_certificate(server_ssl);
+
+    if(server_cert != NULL){
+        fprintf(stdout, "Server Certificate:\n");
+        fflush(stdout);
+        
+        str = X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
+
+        if(str == NULL){
+            perror("X509 subject name error\n");
+            exit(1); 
+        }
+
+        fprintf(stdout, "Subject: %s\n", str);
+        fflush(stdout);
+        free(str);
+        X509_free(server_cert);
+        
+    }
+    else{
+        fprintf(stdout, "Server has no certificate!\n");
+        fflush(stdout);
+    }
+
+fprintf(stdout, "4SEGG THIS BITCH\n");
+fflush(stdout);
+    if(SSL_write(server_ssl, "roflol how in the hell????", sizeof("roflol how in the hell????")) < 0) {
         perror("Error sending message to client.\n");
         exit(0);
     }
+
+    int sizesrly = 0;
+
+    if((sizesrly = SSL_read(server_ssl, recvMessage, sizeof(recvMessage))) < 0){
+        perror("Error receiving message from server");
+        exit(1);
+    } 
+
+    recvMessage[sizesrly] = '\0';
+
+    fprintf(stdout, "Received %d characters:\n '%s\n'", sizesrly, recvMessage);
+    fflush(stdout);
+
+    if(SSL_shutdown(server_ssl) < 0){
+        perror("Error shutting down SSL\n");
+        exit(1);
+    }
+
+    if(close(sockfd) < 0){
+        perror("Error closing socket");
+        exit(1);
+    }
+
+    SSL_free(server_ssl);
+
+    SSL_CTX_free(ssl_ctx);
+
+    if(1){
+        fprintf(stdout, "Goodbye Bitch\n");
+        fflush(stdout);
+        exit(0);
+    }
+
+    // DeadCode DanniBen elskar þetta!
+    
+
+
 
     /* Before we can accept messages, we have to listen to the port. We allow one
      * 1 connection to queue for simplicity.
