@@ -30,11 +30,15 @@
 
 /*  */
 static GTree* tree;
+/* Filepointer for log file */
+FILE *fp;
 
 /**/
 struct connection {
     int connfd;
     SSL *ssl;
+    int port;
+    char* addr;
 };
 
 /**/
@@ -83,25 +87,39 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
-    int sizerly = 0;
+    int size = 0;
     if(conn->connfd != -1){
         if(FD_ISSET(conn->connfd, rfds)){
             memset(recvMessage, '\0', strlen(recvMessage));
-            sizerly = SSL_read(conn->ssl, recvMessage, sizeof(recvMessage));
-            if(sizerly < 0 ){
+            size = SSL_read(conn->ssl, recvMessage, sizeof(recvMessage));
+            if(size < 0 ){
                 perror("ssl_read fail!\n");
                 exit(1);
             }
-            if(sizerly == 0){
+            if(size == 0){
+                g_tree_remove(tree, conn_key);
+                /* Creating the timestamp. */
+                time_t now;
+                time(&now);
+                char buf[sizeof "2011-10-08T07:07:09Z"];
+                memset(buf, 0, sizeof(buf));
+                strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+                /* Write disconnect info to screen. */
+                fprintf(stdout, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
+                fflush(stdout);
+                /* Write disconnect info to file. */
+                fprintf(fp, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
+                fflush(fp);
                 SSL_shutdown(conn->ssl);
                 close(conn->connfd);
                 conn->connfd = -1;
                 SSL_free(conn->ssl);
             }
-            recvMessage[sizerly] = '\0';
+            recvMessage[size] = '\0';
             g_tree_foreach(tree, send_to_all, recvMessage);
         }
     }
@@ -118,10 +136,10 @@ void bye(FILE *fp, struct sockaddr_in client) {
     memset(buf, 0, sizeof(buf));
     strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
     /* Write disconnect info to screen. */
-    fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "disconnected");
+    fprintf(stdout, "%s : %s:%d %s \n", buf, client.sin_addr, client.sin_port, "disconnected");
     fflush(stdout);
     /* Write disconnect info to file. */
-    fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "disconnected");
+    fprintf(fp, "%s : %s:%d %s \n", buf, client.sin_addr, client.sin_port, "disconnected");
     fflush(fp);
 }
 
@@ -146,12 +164,11 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     } else if (_addr1->sin_port > _addr2->sin_port) {
         return 1;
     }
+
     return 0;
 }
 
 int main(int argc, char **argv) {
-    /* Create filepointer for log file */
-    FILE *fp;
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
     int sockfd, sock, listen_sock;
@@ -253,6 +270,8 @@ int main(int argc, char **argv) {
                 struct connection *conn = g_new0(struct connection, 1);
                 size_t len = sizeof(addr);
                 conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
+                conn->addr = inet_ntoa(addr->sin_addr);
+                conn->port = addr->sin_port;
 
                 if(conn->connfd < 0){
                     perror("Error accepting\n");
