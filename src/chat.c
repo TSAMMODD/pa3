@@ -458,7 +458,7 @@ int main(int argc, char **argv)
             break;
         }
         if (r == 0) {
-            write(STDOUT_FILENO, "No message?\n", 12);
+            write(STDOUT_FILENO, "No message?\n>", 12);
             fsync(STDOUT_FILENO);
             /* Whenever you print out a message, call this
                to reprint the current input line. */
