@@ -36,7 +36,31 @@ struct connection {
 /**/
 gboolean print_tree(gpointer key, gpointer value, gpointer data) {
     fprintf(stdout, "inside print tree!\n");
-    fprintf(stdout, "connfd: %d\n", data);
+    struct connection *conn = (struct connection *) value;
+    fprintf(stdout, "connfd: %d\n", conn->connfd);
+    fflush(stdout);
+} 
+
+/**/
+gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
+    fprintf(stdout, "inside print tree!\n");
+    struct connection *conn = (struct connection *) value;
+    int fd = *(int *) data;
+    fprintf(stdout, "connfd: %d -- fd: %d\n", conn->connfd, fd);
+    fflush(stdout);
+
+    if(conn->connfd > fd) {
+        *(int *)data = conn->connfd;
+    }
+
+    return FALSE;
+} 
+
+/**/
+gboolean check_connection(gpointer key, gpointer value, gpointer data) {
+    fprintf(stdout, "inside check connection\n");
+    struct connection *conn = (struct connection *) value;
+    fprintf(stdout, "connfd: %d\n", conn->connfd);
     fflush(stdout);
 } 
 
@@ -151,12 +175,15 @@ int main(int argc, char **argv) {
     client_len = sizeof(client);
     listen(listen_sock, 5);
 
-    struct connection connections[MAX_CONNECTIONS];
+    //struct connection connections[MAX_CONNECTIONS];
     GTree* tree = g_tree_new(sockaddr_in_cmp);
+    int i = 0;
+    /*
     int i = 0;
     for(; i < MAX_CONNECTIONS; i++){
         connections[i].connfd = -1;
     }
+    */
 
     for (;;) {
         fd_set rfds;
@@ -165,8 +192,12 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
-        int highestFD = listen_sock;
+        // TODO
+        //int highestFD = listen_sock;
+        int highestFD = -1;
+        g_tree_foreach(tree, is_greater_fd, &highestFD);
 
+        /*
         for(i = 0; i < MAX_CONNECTIONS; i++){
             if(connections[i].connfd != -1){
                 FD_SET(connections[i].connfd, &rfds);
@@ -175,9 +206,18 @@ int main(int argc, char **argv) {
                 }
             }
         }
+        */
 
         FD_SET(listen_sock, &rfds);
+        if(listen_sock > highestFD) {
+            highestFD = listen_sock;
+        }
+        
+        fprintf(stdout, "before select %d\n", highestFD);        
+        fflush(stdout);
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
+        fprintf(stdout, "after select\n");        
+        fflush(stdout);
 
         /* Open file log file. */
         fp = fopen("src/httpd.log", "a+");
@@ -188,13 +228,38 @@ int main(int argc, char **argv) {
         } else if (retval > 0) {
 
             if(FD_ISSET(listen_sock, &rfds)){
-                for(i = 0; i < MAX_CONNECTIONS; i++){
-                    if(connections[i].connfd == -1){
+                //for(i = 0; i < MAX_CONNECTIONS; i++){
+                    //if(connections[i].connfd == -1){
                         struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                         size_t len = sizeof(addr);
+                        struct connection *conn = g_new0(struct connection, 1);
 
                         //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
-                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
+                        //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
+                        
+                        fprintf(stdout, "berore accept\n");
+                        fflush(stdout);
+                        //conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
+                        conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
+                        fprintf(stdout, "after accept\n");
+                        fflush(stdout);
+
+                        if(conn->connfd < 0){
+                            perror("Error accepting\n");
+                            exit(1);
+                        }
+                        conn->ssl = SSL_new(ctx);
+                        if(conn->ssl == NULL){
+                            perror("Connections SSL NULL");
+                            exit(1);
+                        }
+                        
+                        SSL_set_fd(conn->ssl, conn->connfd);
+                        if(SSL_accept(conn->ssl) < 0){
+                            perror("Accepting ssl error");
+                            exit(1);
+                        } 
+                        /*
                         if(connections[i].connfd < 0){
                             perror("Error accepting\n");
                             exit(1);
@@ -204,13 +269,19 @@ int main(int argc, char **argv) {
                             perror("Connections SSL NULL");
                             exit(1);
                         }
+
                         SSL_set_fd(connections[i].ssl, connections[i].connfd);
                         if(SSL_accept(connections[i].ssl) < 0){
                             perror("Accepting ssl error");
                             exit(1);
                         } 
+                        */
 
-                        g_tree_insert(tree, addr, &connections[i]);
+                        fprintf(stdout, "CHECK!!!!!!!!!!!!! CONNFD: %d\n", conn->connfd);
+                        fprintf(stdout, "check - i: %d\n", i);
+                        fflush(stdout);
+
+                        g_tree_insert(tree, addr, conn);
 
                         /* Creating the timestamp. */
                         time_t now;
@@ -225,12 +296,14 @@ int main(int argc, char **argv) {
                         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
                         fflush(fp);
                         break;
-                    }
-                }
+                    //}
+                //}
             }
 
-            //g_tree_foreach(tree, print_tree, &connections[0]);
+            struct connection *conn;
+            g_tree_foreach(tree, print_tree, conn);
 
+            /*
             for(i = 0; i < MAX_CONNECTIONS; i++){
                 if(connections[i].connfd != -1){
                     if(FD_ISSET(connections[i].connfd, &rfds)){
@@ -243,6 +316,8 @@ int main(int argc, char **argv) {
 
                         }
                         if(sizerly == 0){
+                            fprintf(stdout, "inside sizerly == 0\n");
+                            fflush(stdout);
                             SSL_shutdown(connections[i].ssl);
                             close(connections[i].connfd);
                             connections[i].connfd = -1;
@@ -266,6 +341,7 @@ int main(int argc, char **argv) {
                     }
                 }
            } 
+            */
 
 
             //SSL_shutdown(ssl);
