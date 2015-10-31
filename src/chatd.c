@@ -26,6 +26,7 @@
 
 /* Macros */
 #define MAX_CONNECTIONS 5
+#define MAX_LENGTH 9999
 
 /**/
 struct connection {
@@ -35,19 +36,22 @@ struct connection {
 
 /**/
 gboolean print_tree(gpointer key, gpointer value, gpointer data) {
-    fprintf(stdout, "inside print tree!\n");
     struct connection *conn = (struct connection *) value;
-    fprintf(stdout, "connfd: %d\n", conn->connfd);
-    fflush(stdout);
+} 
+
+/**/
+gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
+    struct connection *conn = (struct connection *) value;
+    fd_set *rfds = (fd_set *) data;
+    if(conn->connfd != -1) {
+        FD_SET(conn->connfd, rfds);
+    }
 } 
 
 /**/
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
-    fprintf(stdout, "inside print tree!\n");
     struct connection *conn = (struct connection *) value;
     int fd = *(int *) data;
-    fprintf(stdout, "connfd: %d -- fd: %d\n", conn->connfd, fd);
-    fflush(stdout);
 
     if(conn->connfd > fd) {
         *(int *)data = conn->connfd;
@@ -58,10 +62,44 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
-    fprintf(stdout, "inside check connection\n");
     struct connection *conn = (struct connection *) value;
-    fprintf(stdout, "connfd: %d\n", conn->connfd);
-    fflush(stdout);
+    fd_set *rfds = (fd_set *) data;
+    char recvMessage[MAX_LENGTH];
+    int sizerly = 0;
+    
+    if(conn->connfd != -1){
+        if(FD_ISSET(conn->connfd, rfds)){
+            memset(recvMessage, '\0', strlen(recvMessage));
+            sizerly = SSL_read(conn->ssl, recvMessage, sizeof(recvMessage));
+            if(sizerly < 0 ){
+                perror("ssl_read fail!\n");
+                exit(1);
+            }
+            if(sizerly == 0){
+                SSL_shutdown(conn->ssl);
+                close(conn->connfd);
+                conn->connfd = -1;
+                SSL_free(conn->ssl);
+            }
+            recvMessage[sizerly] = '\0';
+            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
+            fflush(stdout);
+
+            /*
+            int j = 0;
+            for(; j < MAX_CONNECTIONS; j++){
+                if(connections[j].connfd != -1){
+                    sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
+                    if(sizerly < 0){
+                        perror("Error writing to client");
+                        exit(1);
+                    }
+                }
+            }
+            */          
+        }
+    }
+    return FALSE;
 } 
 
 /* Function that is called when we get a 'bye' message from the client. */
@@ -192,10 +230,9 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
-        // TODO
-        //int highestFD = listen_sock;
         int highestFD = -1;
         g_tree_foreach(tree, is_greater_fd, &highestFD);
+        g_tree_foreach(tree, fd_set_nodes, &rfds);
 
         /*
         for(i = 0; i < MAX_CONNECTIONS; i++){
@@ -213,11 +250,7 @@ int main(int argc, char **argv) {
             highestFD = listen_sock;
         }
         
-        fprintf(stdout, "before select %d\n", highestFD);        
-        fflush(stdout);
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
-        fprintf(stdout, "after select\n");        
-        fflush(stdout);
 
         /* Open file log file. */
         fp = fopen("src/httpd.log", "a+");
@@ -226,60 +259,35 @@ int main(int argc, char **argv) {
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
-
             if(FD_ISSET(listen_sock, &rfds)){
                 //for(i = 0; i < MAX_CONNECTIONS; i++){
                     //if(connections[i].connfd == -1){
                         struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
-                        size_t len = sizeof(addr);
                         struct connection *conn = g_new0(struct connection, 1);
+                        size_t len = sizeof(addr);
 
                         //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
                         //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
                         
-                        fprintf(stdout, "berore accept\n");
-                        fflush(stdout);
-                        //conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
                         conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
-                        fprintf(stdout, "after accept\n");
-                        fflush(stdout);
 
                         if(conn->connfd < 0){
                             perror("Error accepting\n");
                             exit(1);
                         }
+
                         conn->ssl = SSL_new(ctx);
+
                         if(conn->ssl == NULL){
-                            perror("Connections SSL NULL");
+                            perror("Connections SSL NULL\n");
                             exit(1);
                         }
                         
                         SSL_set_fd(conn->ssl, conn->connfd);
                         if(SSL_accept(conn->ssl) < 0){
-                            perror("Accepting ssl error");
-                            exit(1);
-                        } 
-                        /*
-                        if(connections[i].connfd < 0){
-                            perror("Error accepting\n");
+                            perror("Accepting ssl error\n");
                             exit(1);
                         }
-                        connections[i].ssl = SSL_new(ctx);
-                        if(connections[i].ssl == NULL){
-                            perror("Connections SSL NULL");
-                            exit(1);
-                        }
-
-                        SSL_set_fd(connections[i].ssl, connections[i].connfd);
-                        if(SSL_accept(connections[i].ssl) < 0){
-                            perror("Accepting ssl error");
-                            exit(1);
-                        } 
-                        */
-
-                        fprintf(stdout, "CHECK!!!!!!!!!!!!! CONNFD: %d\n", conn->connfd);
-                        fprintf(stdout, "check - i: %d\n", i);
-                        fflush(stdout);
 
                         g_tree_insert(tree, addr, conn);
 
@@ -295,13 +303,13 @@ int main(int argc, char **argv) {
                         /* Write info to file. */
                         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
                         fflush(fp);
-                        break;
                     //}
                 //}
             }
 
-            struct connection *conn;
-            g_tree_foreach(tree, print_tree, conn);
+            fprintf(stdout, "fd_set before check conn: %d\n", &rfds);
+            fflush(stdout);
+            g_tree_foreach(tree, check_connection, &rfds);
 
             /*
             for(i = 0; i < MAX_CONNECTIONS; i++){
@@ -342,15 +350,6 @@ int main(int argc, char **argv) {
                 }
            } 
             */
-
-
-            //SSL_shutdown(ssl);
-            //close(sock);
-            //SSL_free(ssl);
-            //SSL_CTX_free(ctx);  
-
-            //shutdown(sock, SHUT_RDWR);
-            //close(sock);
 
             /* Close the logfile. */
             fclose(fp);
