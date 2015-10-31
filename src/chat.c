@@ -472,6 +472,13 @@ int main(int argc, char **argv)
             if(FD_ISSET(sockfd, &rfds)){
                 memset(recvMessage, '\0', sizeof(recvMessage));
                 int size = SSL_read(server_ssl, recvMessage, sizeof(recvMessage));
+                
+                if(size == 0){
+                    fprintf(stdout, "Server Closed the Connection! - Exiting\n");
+                    fflush(stdout);
+                    exit(0);
+                }
+
                 strcat(recvMessage, "\n>");
                 write(STDOUT_FILENO, recvMessage, strlen(recvMessage));
                 fsync(STDOUT_FILENO);                
