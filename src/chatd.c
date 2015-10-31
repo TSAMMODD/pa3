@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
 
                 fprintf(stdout, "before accept\n");
                 fflush(stdout);
-                conn->connfd = accept(listen_sock, (struct sockaddr*) &addr, &len); 
+                conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
                 if(conn->connfd < 0){
                     perror("Error accepting\n");
@@ -277,6 +277,8 @@ int main(int argc, char **argv) {
                 }
 
                 fprintf(stdout, "before insert\n");
+                fprintf(stdout, "sockaddr_in.sin_addr : %s - addr.sin_port : %d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+                fprintf(stdout, "sockaddr_in.sin_family : %d\n", addr->sin_family);
                 fflush(stdout);
                 g_tree_insert(tree, addr, conn);
                 fprintf(stdout, "after insert\n");
@@ -289,10 +291,10 @@ int main(int argc, char **argv) {
                 memset(buf, 0, sizeof(buf));
                 strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
                 /* Write info to screen. */
-                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
                 fflush(stdout);
                 /* Write info to file. */
-                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
+                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(addr->sin_addr), addr->sin_port, "connected");
                 fflush(fp);
             }
 
