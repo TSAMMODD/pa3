@@ -135,8 +135,9 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
 
     /* If either of the pointers is NULL or the addresses
        belong to different families, we abort. */
-    g_assert((_addr1 == NULL) || (_addr2 == NULL) ||
-            (_addr1->sin_family != _addr2->sin_family));
+    g_assert(_addr1 != NULL);
+    g_assert(_addr2 != NULL);
+    g_assert(_addr1->sin_family == _addr2->sin_family);
 
     if (_addr1->sin_addr.s_addr < _addr2->sin_addr.s_addr) {
         return -1;
