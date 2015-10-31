@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
         }
 
         FD_SET(listen_sock, &rfds);
-        //printf("HighestFD: %d\n", highestFD);       
+        printf("HighestFD: %d\n", highestFD);       
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
         
         /* Open file log file. */
@@ -184,7 +184,11 @@ int main(int argc, char **argv) {
             if(FD_ISSET(listen_sock, &rfds)){
                 for(i = 0; i < MAX_CONNECTIONS; i++){
                     if(connections[i].connfd == -1){
-                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+                        struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
+                        size_t len = sizeof(addr);
+                        
+                        //connections[i].connfd = accept(listen_sock, (struct sockaddr*) &client, &client_len);
+                        connections[i].connfd = accept(listen_sock, (struct sockaddr*) &addr, &len);
                         if(connections[i].connfd < 0){
                             perror("Error accepting\n");
                             exit(1);
@@ -199,6 +203,9 @@ int main(int argc, char **argv) {
                             perror("Accepting ssl error");
                             exit(1);
                         } 
+                            
+                        g_tree_insert(tree, addr, &connections[i]);
+
                         /* Creating the timestamp. */
                         time_t now;
                         time(&now);
@@ -215,6 +222,8 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+
+            //g_tree_foreach(tree, 
             
             for(i = 0; i < MAX_CONNECTIONS; i++){
                 if(connections[i].connfd != -1){
@@ -235,17 +244,13 @@ int main(int argc, char **argv) {
                             break; 
                         }
                         recvMessage[sizerly] = '\0';
-                        fprintf(stdout, "Received %d characters from client:\n '%s'\n", sizerly, recvMessage);
+                        fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
                         fflush(stdout);
-                        int j = 0;
-                        for(; j < MAX_CONNECTIONS; j++){
-                            if(connections[j].connfd != -1){
-                                sizerly = SSL_write(connections[j].ssl, recvMessage, strlen(recvMessage));
-                                if(sizerly < 0){
-                                    perror("Error writing to client");
-                                    exit(1);
-                                }
-                            }
+
+                        sizerly = SSL_write(connections[i].ssl, "Message from server you sweet little twat", strlen("Message from server you sweet little twat\n"));
+                        if(sizerly < 0){
+                            perror("Error writing to client");
+                            exit(1);
                         }
                     }
                 }
