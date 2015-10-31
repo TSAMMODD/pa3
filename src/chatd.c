@@ -48,11 +48,7 @@ gboolean print_tree(gpointer key, gpointer value, gpointer data) {
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
-    fprintf(stdout, "fd_set_nodes before check conn->connfd : %d\n", conn->connfd);    
-    fflush(stdout);
     if(conn->connfd != -1) {
-        fprintf(stdout, "fd_set_nodes inside conn->connfd != -1\n");    
-        fflush(stdout);
         FD_SET(conn->connfd, rfds);
     }
 
@@ -108,8 +104,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 SSL_free(conn->ssl);
             }
             recvMessage[sizerly] = '\0';
-            fprintf(stdout, "Recieved %d characters from client:\n '%s'\n", sizerly, recvMessage);
-            fflush(stdout);
             g_tree_foreach(tree, send_to_all, recvMessage);
         }
     }
@@ -264,36 +258,24 @@ int main(int argc, char **argv) {
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct connection *conn = g_new0(struct connection, 1);
                 size_t len = sizeof(addr);
-
-                fprintf(stdout, "before accept\n");
-                fflush(stdout);
                 conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
                 if(conn->connfd < 0){
                     perror("Error accepting\n");
                     exit(1);
                 }
-
                 conn->ssl = SSL_new(ctx);
-
                 if(conn->ssl == NULL){
                     perror("Connections SSL NULL\n");
                     exit(1);
                 }
-
                 SSL_set_fd(conn->ssl, conn->connfd);
                 if(SSL_accept(conn->ssl) < 0){
                     perror("Accepting ssl error\n");
                     exit(1);
                 }
 
-                fprintf(stdout, "before insert\n");
-                fprintf(stdout, "sockaddr_in.sin_addr : %s - addr.sin_port : %d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
-                fprintf(stdout, "sockaddr_in.sin_family : %d\n", addr->sin_family);
-                fflush(stdout);
                 g_tree_insert(tree, addr, conn);
-                fprintf(stdout, "after insert\n");
-                fflush(stdout);
 
                 /* Creating the timestamp. */
                 time_t now;
@@ -309,8 +291,6 @@ int main(int argc, char **argv) {
                 fflush(fp);
             }
 
-            fprintf(stdout, "fd_set before check conn: %d\n", &rfds);
-            fflush(stdout);
             g_tree_foreach(tree, check_connection, &rfds);
 
             /* Close the logfile. */
