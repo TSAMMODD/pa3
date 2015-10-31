@@ -68,7 +68,9 @@ int main(int argc, char **argv)
     short int s_port = 1337;    
 
     /* Initialize OpenSSL */
+    /* Load encryption & hash algorithms for SSL */
     SSL_library_init();
+    /* Load the error strings for good error reporting */
     SSL_load_error_strings();
 
     method = SSLv3_method();

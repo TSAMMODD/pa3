@@ -249,7 +249,9 @@ void readline_callback(char *line)
 int main(int argc, char **argv)
 {
     /* Initialize OpenSSL */
+    /* Load encryption & hash algorithms for SSL */
     SSL_library_init();
+    /* Load the error strings for good error reporting */
     SSL_load_error_strings();
     SSL_CTX *ssl_ctx;
     SSL *server_ssl;
