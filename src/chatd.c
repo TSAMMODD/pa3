@@ -25,6 +25,7 @@
 #include <openssl/err.h>
 
 /* Macros */
+#define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 
@@ -46,6 +47,7 @@ gboolean print_tree(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
     if(conn->connfd != -1) {
@@ -55,6 +57,7 @@ gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     int fd = *(int *) data;
 
@@ -66,6 +69,7 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
 } 
 
 gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     char *recvMessage = (char *) data;
     int sizerly = 0;
@@ -82,6 +86,7 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
@@ -165,7 +170,7 @@ int main(int argc, char **argv) {
 
     SSL_CTX *ctx;
     SSL *ssl;
-    SSL_METHOD *method = SSLv3_server_method();
+    const SSL_METHOD *method = SSLv3_server_method();
 
     X509 *client_cert = NULL;
     short int s_port = 1337;    
