@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
     listen(listen_sock, 5);
 
     struct connection connections[MAX_CONNECTIONS];
+    GTree* tree = g_tree_new(sockaddr_in_cmp);
     int i = 0;
     for(; i < MAX_CONNECTIONS; i++){
         connections[i].connfd = -1;
