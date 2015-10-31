@@ -159,15 +159,15 @@ int main(int argc, char **argv) {
     FILE *fp;
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
-    int sockfd, sock, listen_sock;
-    struct sockaddr_in server, client;
-    char *str;
-    size_t client_len;
-    char message[512];
-    char recvMessage[8196];
+    int listen_sock; //sockfd, sock;
+    struct sockaddr_in server;//, client;
+    //char *str;
+    //size_t client_len;
+    //char message[512];
+    //char recvMessage[8196];
 
     SSL_CTX *ctx;
-    SSL *ssl;
+    //SSL *ssl;
     const SSL_METHOD *method = SSLv3_server_method();
 
     //X509 *client_cert = NULL;
@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    client_len = sizeof(client);
+    //client_len = sizeof(client);
     listen(listen_sock, 30);
 
     //struct connection connections[MAX_CONNECTIONS];
