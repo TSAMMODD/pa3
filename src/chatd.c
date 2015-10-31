@@ -33,6 +33,12 @@ struct connection {
     SSL *ssl;
 };
 
+/**/
+gboolean print_tree(gpointer key, gpointer value, gpointer data) {
+    fprintf(stdout, "inside print tree!\n");
+    fflush(stdout);
+} 
+
 /* Function that is called when we get a 'bye' message from the client. */
 void bye(FILE *fp, struct sockaddr_in client) {
     /* Creating the timestamp. */
@@ -223,7 +229,7 @@ int main(int argc, char **argv) {
                 }
             }
 
-            //g_tree_foreach(tree, 
+            g_tree_foreach(tree, print_tree, &connections[0]);
             
             for(i = 0; i < MAX_CONNECTIONS; i++){
                 if(connections[i].connfd != -1){
