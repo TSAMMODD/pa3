@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <glib.h>
+#include <arpa/inet.h>
 
 /* Secure socket layer headers */
 #include <openssl/ssl.h>
@@ -146,14 +147,11 @@ int main(int argc, char **argv)
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
             /* Write info to screen. */
-            fprintf(stdout, "%s : %d:%d %s", buf, client.sin_addr.s_addr, client.sin_port, "connected");
+            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
             fflush(stdout);
             /* Write info to file. */
-            fprintf(stdout, "%s : %d:%d %s", buf, client.sin_addr.s_addr, client.sin_port, "connected");
+            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(client.sin_addr), client.sin_port, "connected");
             fflush(fp);
-            
-            //fprintf(stdout, "Connection from %lx, port %x\n", client.sin_addr.s_addr, client.sin_port);
-            //fflush(stdout);
 
             ssl = SSL_new(ctx);
 
