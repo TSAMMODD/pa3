@@ -95,6 +95,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct connection *conn = (struct connection *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
+    memset(recvMessage, '\0', sizeof(recvMessage));
     int size = 0;
     if(conn->connfd != -1){
         if(FD_ISSET(conn->connfd, rfds)){
@@ -124,7 +125,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 SSL_free(conn->ssl);
             }
             recvMessage[size] = '\0';
-            g_tree_foreach(tree, send_to_all, recvMessage);
+            
+            if(strcmp(recvMessage, "/who") == 0) {
+                fprintf(stdout, "who!!!!!\n");
+                fflush(stdout);
+            } else {
+                fprintf(stdout, "else!!!!!\n");
+                fflush(stdout);
+                g_tree_foreach(tree, send_to_all, recvMessage);
+            }
         }
     }
 
@@ -132,20 +141,26 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 } 
 
 /* Function that is called when we get a 'bye' message from the client. */
-void bye(FILE *fp, struct sockaddr_in client) {
-    /* Creating the timestamp. */
+/*
+void bye(struct sockaddr_in *conn_key, struct connection *conn) {
+    fprintf(stdout, "inside bye function\n");
+    fflush(stdout);
+    g_tree_remove(tree, conn_key);
     time_t now;
     time(&now);
     char buf[sizeof "2011-10-08T07:07:09Z"];
     memset(buf, 0, sizeof(buf));
     strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-    /* Write disconnect info to screen. */
-    fprintf(stdout, "%s : %s:%d %s \n", buf, client.sin_addr, client.sin_port, "disconnected");
+    fprintf(stdout, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
     fflush(stdout);
-    /* Write disconnect info to file. */
-    fprintf(fp, "%s : %s:%d %s \n", buf, client.sin_addr, client.sin_port, "disconnected");
+    fprintf(fp, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
     fflush(fp);
+    SSL_shutdown(conn->ssl);
+    close(conn->connfd);
+    conn->connfd = -1;
+    SSL_free(conn->ssl);
 }
+*/
 
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
