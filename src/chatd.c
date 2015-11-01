@@ -28,6 +28,7 @@
 #define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
+#define MAX_USER_LENGTH 48
 
 /*  */
 static GTree* user_tree;
@@ -41,8 +42,8 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
-    char *username;
-    char *password;
+    char username[MAX_USER_LENGTH];
+    char password[MAX_USER_LENGTH];
 };
 
 struct room {
@@ -193,7 +194,23 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 fflush(stdout);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
-        
+            memset(user->username, '\0', strlen(user->username));
+            memset(user->password, '\0', strlen(user->password));
+
+            char user_name[MAX_LENGTH];
+            strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
+            strncpy(user->username, user_name, MAX_USER_LENGTH);
+            memset(recvMessage, '\0', strlen(recvMessage));
+            size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
+            if(size < 0){
+                perror("Error reading password");
+                exit(1);
+            }
+            recvMessage[size] = '\0';
+            strncpy(user->password, recvMessage, MAX_USER_LENGTH);
+         
+            fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
+            fflush(stdout); 
         }else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
@@ -357,7 +374,8 @@ int main(int argc, char **argv) {
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
-
+                memset(user->username, '\0', strlen(user->username));
+                memset(user->password, '\0', strlen(user->password));
                 if(user->connfd < 0){
                     perror("Error accepting\n");
                     exit(1);
