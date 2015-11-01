@@ -279,14 +279,23 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             } else {
+                if(user->room_name != NULL) {
+                    struct room *previous_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                    previous_room->users = g_list_remove(previous_room->users, user_key);
+                }
+                    
+                user->room_name = the_room->room_name;
+                the_room->users = g_list_append(the_room->users, user_key); 
+                g_tree_foreach(room_tree, print_rooms, NULL);
+
                 strcat(message, "You have succesfully joined '");
                 strcat(message, room_name);
                 strcat(message, "'.\n");
                 size = SSL_write(user->ssl, message, strlen(message));
-                user->room_name = the_room->room_name;
-                the_room->users = g_list_append(the_room->users, user_key); 
-                //userinfo = g_list_append(userinfo, &userInformation);
-                g_tree_foreach(room_tree, print_rooms, NULL);
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
             char user_name[MAX_LENGTH];
@@ -455,6 +464,7 @@ int main(int argc, char **argv) {
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
+                user->room_name = NULL;
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
                 if(user->connfd < 0){
