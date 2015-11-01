@@ -265,6 +265,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             close(user->connfd);
             user->connfd = -1;
             SSL_free(user->ssl);
+            return FALSE;
         }
         recvMessage[size] = '\0';
 
@@ -343,8 +344,14 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 char *pw = (char *) userBoo->password;
                 if(strcmp(username, user_name) == 0){
                     if(strcmp(pw, password) == 0){
-                        fprintf(stdout, "Correct Password!\n");
-                        fflush(stdout);
+                        strncpy(user->username, user_name, MAX_USER_LENGTH);
+                        strncpy(user->password, password, MAX_USER_LENGTH);
+                        if(SSL_write(user->ssl, "Successfully logged in.\n", strlen("Successfully logged in.\n")) < 0) {
+                            perror("Error Writing to client\n");
+                            exit(1);
+                        }
+
+                        return FALSE;
                     } else {
                         fprintf(stdout, "Incorrect Password!\n");
                         fflush(stdout);
@@ -371,6 +378,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fflush(stdout); 
         }else {
             if(user->room_name == NULL) {
+
                 strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.\n");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
