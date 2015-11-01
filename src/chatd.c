@@ -225,7 +225,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             exit(1);
         }
         if(size == 0){
-            g_tree_remove(user_tree, user_key);
             /* Creating the timestamp. */
             time_t now;
             time(&now);
@@ -238,6 +237,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             /* Write disconnect info to file. */
             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
             fflush(fp);
+
+            g_tree_remove(user_tree, user_key);
+            if(user->room_name != NULL) {
+                struct room *previous_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                previous_room->users = g_list_remove(previous_room->users, user_key);
+            }
             SSL_shutdown(user->ssl);
             close(user->connfd);
             user->connfd = -1;
@@ -352,7 +357,6 @@ int main(int argc, char **argv) {
     room_tree = g_tree_new(strcmp);
 
     userinfo = NULL;
-
     
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
