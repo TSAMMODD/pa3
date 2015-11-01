@@ -190,7 +190,7 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
 }
 
 void print_users(gpointer data, gpointer user_data) {
-    struct user *user = (struct user *) data;
+    struct sockaddr_in *user = (struct sockaddr_in *) data;
     //fprintf(stdout, "users_connfd: %d\n", user->connfd);
     fprintf(stdout, "inside print_users\n");
     fflush(stdout);
@@ -202,6 +202,11 @@ gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     GList *users = (GList *) value;
     int users_size = g_list_length(users);
     fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
+    fflush(stdout);
+    struct sockaddr_in *user;
+    users = g_list_append(users, user);
+    int users_size_2 = g_list_length(users);
+    fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
     fflush(stdout);
     g_list_foreach(users, print_users, NULL);
 }
@@ -221,6 +226,8 @@ int main(int argc, char **argv) {
     GList *users_2 = g_new0(GList, 1);
     strcpy(room_name_1, "Room1");
     strcpy(room_name_2, "Room2");
+    users_1 = NULL;
+    users_2 = NULL;
     g_tree_insert(room_tree, room_name_1, users_1);
     g_tree_insert(room_tree, room_name_2, users_2);
 
