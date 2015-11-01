@@ -284,16 +284,16 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 exit(1);
             }
             recvMessage[size] = '\0';
-             fprintf(stdout, "B4 strncpy\n");
+            fprintf(stdout, "B4 strncpy\n");
             fflush(stdout); 
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
             struct userstruct userInformation;
-             fprintf(stdout, "B4 strcpy\n");
+            fprintf(stdout, "B4 strcpy\n");
             fflush(stdout); 
             userInformation.username = user_name; 
             userInformation.password = recvMessage;
             userInformation.addr = user_key;
-             fprintf(stdout, "B4 append\n");
+            fprintf(stdout, "B4 append\n");
             fflush(stdout); 
 
             fprintf(stdout, "username: %s\n", userInformation.username);
