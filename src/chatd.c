@@ -43,7 +43,8 @@ struct user {
 };
 
 struct room {
-
+    char* room_name;
+    GList *users;
 };
 
 /**/
@@ -188,6 +189,10 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     return 0;
 }
 
+gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    
+}
+
 int main(int argc, char **argv) {
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
@@ -195,6 +200,16 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     user_tree = g_tree_new(sockaddr_in_cmp);
     room_tree = g_tree_new(strcmp);
+    char *room_name_1 = g_new0(char, 1);
+    char *room_name_2 = g_new0(char, 1);
+    GList *users_1 = g_new0(GList, 1);
+    GList *users_2 = g_new0(GList, 1);
+    strcpy(room_name, "Room1");
+    strcpy(room_name, "Room2");
+    g_tree_insert(room_tree, room_name, users);
+    g_tree_insert(room_tree, room_name, users);
+
+    g_tree_foreach(room_name, print_rooms, NULL);
 
     SSL_CTX *ctx;
     const SSL_METHOD *method = SSLv3_server_method();
