@@ -49,8 +49,6 @@ struct room {
 
 /**/
 gboolean list_users(gpointer key, gpointer value, gpointer data) {
-    fprintf(stdout, "before list users\n");
-    fflush(stdout);
     struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
     char *users = (char *) data;
@@ -72,14 +70,12 @@ gboolean list_users(gpointer key, gpointer value, gpointer data) {
 /**/
 gboolean list_rooms(gpointer key, gpointer value, gpointer data) {
     UNUSED(value);
-    fprintf(stdout, "before list rooms\n");
-    fflush(stdout);
     char* room_name = (char *) key;
-    char *users = (char *) data;
+    char *rooms = (char *) data;
     
-    strcat(users, "Room => User name: ");
-    strcat(users, room_name);
-    strcat(users, "\n");
+    strcat(rooms, "Room => Room name: ");
+    strcat(rooms, room_name);
+    strcat(rooms, "\n");
     
     return FALSE;
 }
@@ -184,6 +180,16 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/join", 5) == 0) {
             char room_name[MAX_LENGTH];
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
+            fprintf(stdout, "room_name : %s\n", room_name);
+            fflush(stdout);
+            gpointer the_room = g_tree_lookup(room_tree, room_name);
+            if(the_room == NULL) {
+                fprintf(stdout, "the_room == NULL\n");
+                fflush(stdout);
+            } else {
+                fprintf(stdout, "the_room != NULL\n");
+                fflush(stdout);
+            }
         }
         else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
