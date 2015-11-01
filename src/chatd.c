@@ -175,6 +175,9 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
 void print_userinfo(gpointer data, gpointer user_data) {
     struct userstruct *user = (struct userstruct *) data;
+    fprintf(stdout, "Inside userinfo\n");
+        fflush(stdout);
+
     if(user == NULL){
         fprintf(stdout, "NULL\n");
         fflush(stdout);
@@ -260,6 +263,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 fflush(stdout);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
+
             memset(user->username, '\0', strlen(user->username));
             memset(user->password, '\0', strlen(user->password));
 
@@ -276,6 +280,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             recvMessage[size] = '\0';
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
             struct userstruct userInformation;
+            
             strcpy(userInformation.username, user->username);
             strcpy(userInformation.password, user->password);
             userInformation.addr = user_key;
