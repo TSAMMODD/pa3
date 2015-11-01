@@ -491,4 +491,8 @@ int main(int argc, char **argv)
     }
     /* replace by code to shutdown the connection and exit
        the program. */
+    SSL_shutdown(server_ssl);
+    close(sockfd);
+    SSL_free(server_ssl);
+    SSL_CTX_free(ssl_ctx);
 }
