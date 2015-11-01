@@ -199,23 +199,21 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         }
         recvMessage[size] = '\0';
 
+        char message[MAX_LENGTH];
+        memset(message, '\0', sizeof(message));
+        int size = 0;
+
         if(strncmp(recvMessage, "/who", 4) == 0) {
-            char users[MAX_LENGTH];
-            memset(users, '\0', sizeof(users));
-            int size = 0;
-            g_tree_foreach(user_tree, list_userinfo, &users);
-            size = SSL_write(user->ssl, users, strlen(users));
+            g_tree_foreach(user_tree, list_userinfo, &message);
+            size = SSL_write(user->ssl, message, strlen(message));
             if(size < 0){
                 perror("Error writing to client");
                 exit(1);
             }
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
-            char rooms[MAX_LENGTH];
-            memset(rooms, '\0', sizeof(rooms));
-            int size = 0;
-            g_tree_foreach(room_tree, list_roominfo, &rooms);
-            size = SSL_write(user->ssl, rooms, strlen(rooms));
+            g_tree_foreach(room_tree, list_roominfo, &message);
+            size = SSL_write(user->ssl, message, strlen(message));
             if(size < 0) {
                 perror("Error writing to client");
                 exit(1);
@@ -224,19 +222,23 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
-            fprintf(stdout, "THE ROOM BEFORE SEARCH: %s\n", room_name);
-            //gpointer the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
             struct room *the_room = g_tree_search(room_tree, search_string_cmp, room_name);
             if(the_room == NULL) {
-                fprintf(stdout, "the_room == NULL\n");
-                fflush(stdout);
+                strcat(message, "The room ");
+                strcat(message, room_name);
+                strcat(message, " does not exist.\n");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
             } else {
                 fprintf(stdout, "the_room != NULL\n");
                 fprintf(stdout, "the name we found: %s\n", the_room->room_name);
                 fflush(stdout);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
-        
+
         }else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
@@ -300,8 +302,6 @@ int main(int argc, char **argv) {
     g_tree_insert(room_tree, room_name_2, room_2);
     g_tree_insert(room_tree, room_name_3, room_3);
     g_tree_insert(room_tree, room_name_4, room_4);
-    fprintf(stdout, "ROOM-TREE size: %d\n", g_tree_nnodes(room_tree));
-    fflush(stdout);
     
     g_tree_foreach(room_tree, print_rooms, NULL);
 
