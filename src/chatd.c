@@ -95,6 +95,21 @@ int search_string_cmp(const void *addr1, const void *addr2) {
     else  return 0;
 }
 
+void print_users(gpointer data, gpointer user_data) {
+    struct sockaddr_in *user = (struct sockaddr_in *) data;
+    fprintf(stdout, "User: %d\n", user->sin_port);
+    fflush(stdout);
+}
+
+
+gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    char *room_name = (char *) key;
+    struct room *room = (struct room *) value;
+    fprintf(stdout, "Room: %s\n", room_name);
+    fflush(stdout);
+    g_list_foreach(room->users, print_users, NULL);
+}
+
 /* A method that is used when we receive the command '/who' and has
  * the purpose of listing all necessary information about a given user. 
  * It is sent as a parameter to a g_tree_foreach that iterates through
@@ -269,6 +284,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 strcat(message, "'.\n");
                 size = SSL_write(user->ssl, message, strlen(message));
                 user->room_name = the_room->room_name;
+                the_room->users = g_list_append(the_room->users, user_key); 
+                //userinfo = g_list_append(userinfo, &userInformation);
+                g_tree_foreach(room_tree, print_rooms, NULL);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
             char user_name[MAX_LENGTH];
@@ -315,28 +333,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
     return FALSE;
 } 
-
-
-void print_users(gpointer data, gpointer user_data) {
-    struct sockaddr_in *user = (struct sockaddr_in *) data;
-    //fprintf(stdout, "inside print_users\n");
-    //fflush(stdout);
-}
-
-
-gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
-    char *room_name = (char *) key;
-    struct room *room = (struct room *) value;
-    int users_size = g_list_length(room->users);
-    //fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
-    //fflush(stdout);
-    struct sockaddr_in *user;
-    room->users = g_list_append(room->users, user);
-    int users_size_2 = g_list_length(room->users);
-    //fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
-    //fflush(stdout);
-    g_list_foreach(room->users, print_users, NULL);
-}
 
 int main(int argc, char **argv) {
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
