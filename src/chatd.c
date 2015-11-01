@@ -42,6 +42,8 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
+    char *username;
+    char *password;
 };
 
 struct room {
@@ -186,8 +188,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/join", 5) == 0) {
            fprintf(stdout, "JOIN\n"); 
             fflush(stdout);
-        }
-        else {
+        }else if(strncmp(recvMessage, "/user", 5) == 0){
+            fprintf(stdout, "USER\n"); 
+            fflush(stdout);
+            
+        }else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
     }

@@ -173,11 +173,6 @@ void readline_callback(char *line)
 
         /* Process and send this information to the server. */
 
-        /* Maybe update the prompt. */
-        //free(prompt);
-        //prompt = NULL; /* What should the new prompt look like? */
-        //rl_set_prompt(prompt);
-        
         if(SSL_write(server_ssl, line, strlen(line)) < 0 ){
             perror("Error Writing /join to server\n");
             exit(1);
@@ -235,6 +230,7 @@ void readline_callback(char *line)
             return;
         }
         char *new_user = strdup(&(line[i]));
+        strcat(new_user, ": ");
         char passwd[48];
         getpasswd("Password: ", passwd, 48);
 
@@ -242,8 +238,18 @@ void readline_callback(char *line)
 
         /* Maybe update the prompt. */
         free(prompt);
-        prompt = NULL; /* What should the new prompt look like? */
+        prompt = new_user; /* What should the new prompt look like? */
         rl_set_prompt(prompt);
+
+        if(SSL_write(server_ssl, line, strlen(line)) < 0){
+            perror("Error writing /user to server\n");
+            exit(1);
+        }
+        if(SSL_write(server_ssl, passwd, strlen(passwd)) < 0){
+            perror("Error writing pw to server\n");
+            exit(1);
+        }
+
         return;
     }
     /* Sent the buffer to the server. */
@@ -391,44 +397,6 @@ int main(int argc, char **argv)
         fflush(stdout);
     }
     
-    /*
-    if(SSL_write(server_ssl, "roflol how in the hell????", sizeof("roflol how in the hell????")) < 0) {
-        perror("Error sending message to client.\n");
-        exit(0);
-    }
-
-    int sizesrly = 0;
-
-    if((sizesrly = SSL_read(server_ssl, recvMessage, sizeof(recvMessage))) < 0){
-        perror("Error receiving message from server");
-        exit(1);
-    } 
-
-    recvMessage[sizesrly] = '\0';
-
-    fprintf(stdout, "Received %d characters:\n '%s\n'", sizesrly, recvMessage);
-    fflush(stdout);
-    */
-    
-
-    /*
-    if(SSL_shutdown(server_ssl) < 0){
-        perror("Error shutting down SSL\n");
-        exit(1);
-    }
-    */
-    /*
-    if(close(sockfd) < 0){
-        perror("Error closing socket");
-        exit(1);
-    }
-    */
-    //SSL_free(server_ssl);
-
-    //SSL_CTX_free(ssl_ctx);
-
-    // DeadCode DanniBen elskar þetta!
-
     /* Before we can accept messages, we have to listen to the port. */
     listen(sockfd, 1);
 
