@@ -30,33 +30,38 @@
 #define MAX_LENGTH 9999
 
 /*  */
-static GTree* tree;
+static GTree* user_tree;
+/*  */
+static GTree* room_tree;
 /* Filepointer for log file */
 FILE *fp;
 
 /**/
-struct connection {
+struct user {
     int connfd;
     SSL *ssl;
-    int port;
-    char* addr;
+};
+
+struct room {
+    char* room_name;
+    GList *users;
 };
 
 /**/
 gboolean list_users(gpointer key, gpointer value, gpointer data) {
     fprintf(stdout, "before list users\n");
     fflush(stdout);
-    UNUSED(key);
-    struct connection *conn = (struct connection *) value;
+    struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;
     char *users = (char *) data;
     
     strcat(users, "User => User name: ");
     strcat(users, "NULL");
     strcat(users, " IP adress: ");
-    strcat(users, conn->addr);
+    strcat(users, inet_ntoa(conn_key->sin_addr));
     strcat(users, " Port number: ");
     char the_port[20];
-    sprintf(the_port, "%d", conn->port);
+    sprintf(the_port, "%d", conn_key->sin_port);
     strcat(users, the_port);
     strcat(users, " Current room: ");
     strcat(users, "NULL\n");
@@ -67,7 +72,7 @@ gboolean list_users(gpointer key, gpointer value, gpointer data) {
 /**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
-    struct connection *conn = (struct connection *) value;
+    struct user *conn = (struct user *) value;
     fd_set *rfds = (fd_set *) data;
     if(conn->connfd != -1) {
         FD_SET(conn->connfd, rfds);
@@ -79,7 +84,7 @@ gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
 /**/
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
-    struct connection *conn = (struct connection *) value;
+    struct user *conn = (struct user *) value;
     int fd = *(int *) data;
     if(conn->connfd > fd) {
         *(int *)data = conn->connfd;
@@ -90,7 +95,7 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
 
 gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
-    struct connection *conn = (struct connection *) value;
+    struct user *conn = (struct user *) value;
     char *recvMessage = (char *) data;
     int size = 0;
     if(conn->connfd != -1) {
@@ -106,82 +111,58 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
-    struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
-    struct connection *conn = (struct connection *) value;
+    struct sockaddr_in *user_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
     memset(recvMessage, '\0', sizeof(recvMessage));
     int size = 0;
-    if(conn->connfd != -1){
-        if(FD_ISSET(conn->connfd, rfds)){
-            memset(recvMessage, '\0', strlen(recvMessage));
-            size = SSL_read(conn->ssl, recvMessage, sizeof(recvMessage));
-            if(size < 0 ){
-                perror("ssl_read fail!\n");
+    if(FD_ISSET(user->connfd, rfds)){
+        memset(recvMessage, '\0', strlen(recvMessage));
+        size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
+        if(size < 0 ){
+            perror("ssl_read fail!\n");
+            exit(1);
+        }
+        if(size == 0){
+            g_tree_remove(user_tree, user_key);
+            /* Creating the timestamp. */
+            time_t now;
+            time(&now);
+            char buf[sizeof "2011-10-08T07:07:09Z"];
+            memset(buf, 0, sizeof(buf));
+            strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+            /* Write disconnect info to screen. */
+            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
+            fflush(stdout);
+            /* Write disconnect info to file. */
+            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
+            fflush(fp);
+            SSL_shutdown(user->ssl);
+            close(user->connfd);
+            user->connfd = -1;
+            SSL_free(user->ssl);
+        }
+        recvMessage[size] = '\0';
+
+        if(strncmp(recvMessage, "/who", 4) == 0) {
+            char users[MAX_LENGTH];
+            memset(users, '\0', sizeof(users));
+            int size = 0;
+            g_tree_foreach(user_tree, list_users, &users);
+            size = SSL_write(user->ssl, users, strlen(users));
+            if(size < 0){
+                perror("Error writing to client");
                 exit(1);
             }
-            if(size == 0){
-                g_tree_remove(tree, conn_key);
-                /* Creating the timestamp. */
-                time_t now;
-                time(&now);
-                char buf[sizeof "2011-10-08T07:07:09Z"];
-                memset(buf, 0, sizeof(buf));
-                strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-                /* Write disconnect info to screen. */
-                fprintf(stdout, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-                fflush(stdout);
-                /* Write disconnect info to file. */
-                fprintf(fp, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-                fflush(fp);
-                SSL_shutdown(conn->ssl);
-                close(conn->connfd);
-                conn->connfd = -1;
-                SSL_free(conn->ssl);
-            }
-            recvMessage[size] = '\0';
-            
-            if(strncmp(recvMessage, "/who", 4) == 0) {
-                char users[MAX_LENGTH];
-                memset(users, '\0', sizeof(users));
-                int size = 0;
-                g_tree_foreach(tree, list_users, &users);
-                size = SSL_write(conn->ssl, users, strlen(users));
-                if(size < 0){
-                    perror("Error writing to client");
-                    exit(1);
-                }
-                
-            } else {
-                g_tree_foreach(tree, send_to_all, recvMessage);
-            }
+
+        } else {
+            g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
     }
 
     return FALSE;
 } 
-
-/* Function that is called when we get a 'bye' message from the client. */
-/*
-void bye(struct sockaddr_in *conn_key, struct connection *conn) {
-    fprintf(stdout, "inside bye function\n");
-    fflush(stdout);
-    g_tree_remove(tree, conn_key);
-    time_t now;
-    time(&now);
-    char buf[sizeof "2011-10-08T07:07:09Z"];
-    memset(buf, 0, sizeof(buf));
-    strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-    fprintf(stdout, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-    fflush(stdout);
-    fprintf(fp, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-    fflush(fp);
-    SSL_shutdown(conn->ssl);
-    close(conn->connfd);
-    conn->connfd = -1;
-    SSL_free(conn->ssl);
-}
-*/
 
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
@@ -208,22 +189,30 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     return 0;
 }
 
+gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    
+}
+
 int main(int argc, char **argv) {
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
-    int listen_sock; //sockfd, sock;
-    struct sockaddr_in server;//, client;
-    //char *str;
-    //size_t client_len;
-    //char message[512];
-    //char recvMessage[8196];
+    int listen_sock;
+    struct sockaddr_in server;
+    user_tree = g_tree_new(sockaddr_in_cmp);
+    room_tree = g_tree_new(strcmp);
+    char *room_name_1 = g_new0(char, 1);
+    char *room_name_2 = g_new0(char, 1);
+    GList *users_1 = g_new0(GList, 1);
+    GList *users_2 = g_new0(GList, 1);
+    strcpy(room_name, "Room1");
+    strcpy(room_name, "Room2");
+    g_tree_insert(room_tree, room_name, users);
+    g_tree_insert(room_tree, room_name, users);
+
+    g_tree_foreach(room_name, print_rooms, NULL);
 
     SSL_CTX *ctx;
-    //SSL *ssl;
     const SSL_METHOD *method = SSLv3_server_method();
-
-    //X509 *client_cert = NULL;
-    //short int s_port = 1337;    
 
     /* Initialize OpenSSL */
     /* Load encryption & hash algorithms for SSL */
@@ -273,11 +262,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    //client_len = sizeof(client);
     listen(listen_sock, 30);
-
-    //struct connection connections[MAX_CONNECTIONS];
-    tree = g_tree_new(sockaddr_in_cmp);
 
     for (;;) {
         fd_set rfds;
@@ -289,8 +274,8 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
-        g_tree_foreach(tree, is_greater_fd, &highestFD);
-        g_tree_foreach(tree, fd_set_nodes, &rfds);
+        g_tree_foreach(user_tree, is_greater_fd, &highestFD);
+        g_tree_foreach(user_tree, fd_set_nodes, &rfds);
         
         FD_SET(listen_sock, &rfds);
         if(listen_sock > highestFD) {
@@ -306,33 +291,31 @@ int main(int argc, char **argv) {
         } else if (retval > 0) {
             if(FD_ISSET(listen_sock, &rfds)){
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
-                struct connection *conn = g_new0(struct connection, 1);
+                struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
-                conn->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
-                conn->addr = inet_ntoa(addr->sin_addr);
-                conn->port = addr->sin_port;
+                user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
-                if(conn->connfd < 0){
+                if(user->connfd < 0){
                     perror("Error accepting\n");
                     exit(1);
                 }
-                conn->ssl = SSL_new(ctx);
-                if(conn->ssl == NULL){
+                user->ssl = SSL_new(ctx);
+                if(user->ssl == NULL){
                     perror("Connections SSL NULL\n");
                     exit(1);
                 }
-                SSL_set_fd(conn->ssl, conn->connfd);
-                if(SSL_accept(conn->ssl) < 0){
+                SSL_set_fd(user->ssl, user->connfd);
+                if(SSL_accept(user->ssl) < 0){
                     perror("Accepting ssl error\n");
                     exit(1);
                 }
                 
-                if(SSL_write(conn->ssl, "Welcome", strlen("Welcome")) < 0){
+                if(SSL_write(user->ssl, "Welcome", strlen("Welcome")) < 0){
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
 
-                g_tree_insert(tree, addr, conn);
+                g_tree_insert(user_tree, addr, user);
 
                 /* Creating the timestamp. */
                 time_t now;
@@ -348,7 +331,7 @@ int main(int argc, char **argv) {
                 fflush(fp);
             }
 
-            g_tree_foreach(tree, check_connection, &rfds);
+            g_tree_foreach(user_tree, check_connection, &rfds);
 
             /* Close the logfile. */
             fclose(fp);
