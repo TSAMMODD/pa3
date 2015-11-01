@@ -182,7 +182,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
-            gpointer the_room = g_tree_search(room_tree, strcmp, room_name);
+            fprintf(stdout, "THE ROOM BEFORE SEARCH: %s\n", room_name);
+            //gpointer the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
+            GList *the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
             if(the_room == NULL) {
                 fprintf(stdout, "the_room == NULL\n");
                 fflush(stdout);
@@ -227,24 +229,23 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
 
 void print_users(gpointer data, gpointer user_data) {
     struct sockaddr_in *user = (struct sockaddr_in *) data;
-    //fprintf(stdout, "users_connfd: %d\n", user->connfd);
-    fprintf(stdout, "inside print_users\n");
-    fflush(stdout);
+    //fprintf(stdout, "inside print_users\n");
+    //fflush(stdout);
 }
 
 
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     char *room_name = (char *) key;
-    GList *users = (GList *) value;
-    int users_size = g_list_length(users);
-    fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
-    fflush(stdout);
+    struct room *room = (struct room *) value;
+    int users_size = g_list_length(room->users);
+    //fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
+    //fflush(stdout);
     struct sockaddr_in *user;
-    users = g_list_append(users, user);
-    int users_size_2 = g_list_length(users);
-    fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
-    fflush(stdout);
-    g_list_foreach(users, print_users, NULL);
+    room->users = g_list_append(room->users, user);
+    int users_size_2 = g_list_length(room->users);
+    //fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
+    //fflush(stdout);
+    g_list_foreach(room->users, print_users, NULL);
 }
 
 int main(int argc, char **argv) {
@@ -258,14 +259,18 @@ int main(int argc, char **argv) {
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
-    GList *users_1 = g_new0(GList, 1);
-    GList *users_2 = g_new0(GList, 1);
+    struct room *room_1 = g_new0(struct room, 1);
+    struct room *room_2 = g_new0(struct room, 1);
+    //GList *users_1 = g_new0(GList, 1);
+    //GList *users_2 = g_new0(GList, 1);
     strcpy(room_name_1, "Room1");
     strcpy(room_name_2, "Room2");
-    users_1 = NULL;
-    users_2 = NULL;
-    g_tree_insert(room_tree, room_name_1, users_1);
-    g_tree_insert(room_tree, room_name_2, users_2);
+    room_1->room_name = room_name_1;
+    room_2->room_name = room_name_2;
+    room_1->users = NULL;
+    room_2->users = NULL;
+    g_tree_insert(room_tree, room_name_1, room_1);
+    g_tree_insert(room_tree, room_name_2, room_2);
 
     g_tree_foreach(room_tree, print_rooms, NULL);
 
