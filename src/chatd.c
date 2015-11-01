@@ -46,8 +46,8 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
-    char *username;
-    char *password;
+    char username[MAX_USER_LENGTH];
+    char password[MAX_USER_LENGTH];
     char *room_name;
 };
 
@@ -270,27 +270,35 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 user->room_name = the_room->room_name;
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
-
-            memset(user->username, '\0', strlen(user->username));
-            memset(user->password, '\0', strlen(user->password));
-
             char user_name[MAX_LENGTH];
+             fprintf(stdout, "B4 strncpy\n");
+            fflush(stdout); 
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             memset(recvMessage, '\0', strlen(recvMessage));
-
+             fprintf(stdout, "B4 read\n");
+            fflush(stdout); 
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
             if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
             recvMessage[size] = '\0';
+             fprintf(stdout, "B4 strncpy\n");
+            fflush(stdout); 
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
             struct userstruct userInformation;
-            
-            strcpy(userInformation.username, user->username);
-            strcpy(userInformation.password, user->password);
+             fprintf(stdout, "B4 strcpy\n");
+            fflush(stdout); 
+            userInformation.username = user_name; 
+            userInformation.password = recvMessage;
             userInformation.addr = user_key;
+             fprintf(stdout, "B4 append\n");
+            fflush(stdout); 
+
+            fprintf(stdout, "username: %s\n", userInformation.username);
+            fflush(stdout); 
+
 
             userinfo = g_list_append(userinfo, &userInformation);
             fprintf(stdout, "Size: %d\n", g_list_length(userinfo));
