@@ -178,18 +178,18 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
-gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
-    UNUSED(key);
-    struct user *conn = (struct user *) value;
-    char *recvMessage = (char *) data;
+gboolean send_message_to_user(gpointer data, gpointer user_data) {
+    struct user *user = (struct user *) data;
+    char *recvMessage = (char *) user_data;
     int size = 0;
-    if(conn->connfd != -1) {
-        size = SSL_write(conn->ssl, recvMessage, strlen(recvMessage));
-        if(size < 0){
-            perror("Error writing to client");
-            exit(1);
-        }
-    } 
+    
+    //g_list_find(    
+
+    size = SSL_write(user->ssl, recvMessage, strlen(recvMessage));
+    if(size < 0){
+        perror("Error writing to client");
+        exit(1);
+    }
 
     return FALSE;
 }
@@ -348,9 +348,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     perror("Error writing to client");
                     exit(1);
                 }
-                
             } else {
-                g_tree_foreach(user_tree, send_to_all, recvMessage);
+                //g_tree_foreach(user_tree, send_message_to_user, recvMessage);
+                struct room *the_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                g_list_foreach(the_room->users, send_message_to_user, recvMessage);
             }
         }
     }
