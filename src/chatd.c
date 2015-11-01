@@ -326,6 +326,11 @@ int main(int argc, char **argv) {
                     perror("Accepting ssl error\n");
                     exit(1);
                 }
+                
+                if(SSL_write(conn->ssl, "Welcome", strlen("Welcome")) < 0){
+                    perror("Error writing 'Welcome'\n");
+                    exit(1);
+                }
 
                 g_tree_insert(tree, addr, conn);
 
