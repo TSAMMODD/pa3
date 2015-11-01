@@ -343,6 +343,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 char *username = (char *) userBoo->username;
                 char *pw = (char *) userBoo->password;
                 if(strcmp(username, user_name) == 0){
+                    time_t now;
+                    time(&now);
+                    char buf[sizeof "2011-10-08T07:07:09Z"];
+                    memset(buf, 0, sizeof(buf));
+                    strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
                         strncpy(user->password, password, MAX_USER_LENGTH);
@@ -350,15 +355,22 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
+                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
+                        fflush(stdout);
+                        /* Write disconnect info to file. */
+                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
+                        fflush(fp);
 
                         return FALSE;
                     } else {
-                        fprintf(stdout, "Incorrect Password!\n");
-                        fflush(stdout);
                         if(SSL_write(user->ssl, "Incorrect Password\n", strlen("Incorrect Password\n")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
+                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                        fflush(stdout);
+                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                        fflush(fp);
                         return FALSE;
                     }
                     break;
@@ -373,9 +385,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(userInformation->password, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->password, password);
             userinfo = g_list_append(userinfo, userInformation);
-            g_list_foreach(userinfo, print_userinfo, NULL);
-            fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
-            fflush(stdout); 
+            //g_list_foreach(userinfo, print_userinfo, NULL);
+            //fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
+            //fflush(stdout); 
         }else {
             if(user->room_name == NULL) {
 
