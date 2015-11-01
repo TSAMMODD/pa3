@@ -50,7 +50,7 @@ gboolean list_users(gpointer key, gpointer value, gpointer data) {
     struct connection *conn = (struct connection *) value;
     char *users = (char *) data;
     
-    strcpy(users, "User => User name: ");
+    strcat(users, "User => User name: ");
     strcat(users, "NULL");
     strcat(users, " IP adress: ");
     strcat(users, conn->addr);
