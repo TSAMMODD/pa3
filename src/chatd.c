@@ -96,7 +96,7 @@ int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     else return 0;
 }
 
-int search_string_cmp(const void *addr1, const void *addr2) {
+int search_strcmp(const void *addr1, const void *addr2) {
     const char *_addr1 = addr1;
     const char *_addr2 = addr2;
     int ret = strcmp(_addr1, _addr2);
@@ -258,7 +258,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
             g_tree_remove(user_tree, user_key);
             if(user->room_name != NULL) {
-                struct room *previous_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
             }
             SSL_shutdown(user->ssl);
@@ -292,7 +292,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
-            struct room *the_room = g_tree_search(room_tree, search_string_cmp, room_name);
+            struct room *the_room = g_tree_search(room_tree, search_strcmp, room_name);
             if(the_room == NULL) {
                 strcat(message, "The room '");
                 strcat(message, room_name);
@@ -304,7 +304,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             } else {
                 if(user->room_name != NULL) {
-                    struct room *previous_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                    struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                     previous_room->users = g_list_remove(previous_room->users, user_key);
                 }
                     
@@ -387,7 +387,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             } else {
                 //g_tree_foreach(user_tree, send_message_to_user, recvMessage);
-                struct room *the_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 fprintf(stdout, "Sending to room: %s - number of users: %d\n", the_room->room_name, g_list_length(the_room->users));
                 g_list_foreach(the_room->users, send_message_to_user, recvMessage);
             }
