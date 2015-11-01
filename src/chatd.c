@@ -172,8 +172,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
-            fprintf(stdout, "LIST\n");
-            fflush(stdout);
             char rooms[MAX_LENGTH];
             memset(rooms, '\0', sizeof(rooms));
             int size = 0;
@@ -184,13 +182,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 exit(1);
             }
         } else if(strncmp(recvMessage, "/join", 5) == 0) {
-           fprintf(stdout, "JOIN\n"); 
-            fflush(stdout);
+            char room_name[MAX_LENGTH];
+            strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
         }
         else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
-            fprintf(stdout, "ELSE\n"); 
-            fflush(stdout);
         }
     }
 
