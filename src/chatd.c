@@ -191,7 +191,9 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
 
 void print_users(gpointer data, gpointer user_data) {
     struct user *user = (struct user *) data;
-
+    //fprintf(stdout, "users_connfd: %d\n", user->connfd);
+    fprintf(stdout, "inside print_users\n");
+    fflush(stdout);
 }
 
 
@@ -199,9 +201,9 @@ gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     char *room_name = (char *) key;
     GList *users = (GList *) value;
     int users_size = g_list_length(users);
-    g_list_foreach(users, print_users, NULL);
     fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
     fflush(stdout);
+    g_list_foreach(users, print_users, NULL);
 }
 
 int main(int argc, char **argv) {
