@@ -341,7 +341,17 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             fflush(stdout); 
         }else {
-            g_tree_foreach(user_tree, send_to_all, recvMessage);
+            if(user->room_name == NULL) {
+                strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.\n");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                
+            } else {
+                g_tree_foreach(user_tree, send_to_all, recvMessage);
+            }
         }
     }
 
