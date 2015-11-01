@@ -76,6 +76,7 @@ gboolean list_rooms(gpointer key, gpointer value, gpointer data) {
     strcat(rooms, "Room => Room name: ");
     strcat(rooms, room_name);
     strcat(rooms, "\n");
+    fprintf(stdout, "Size of roomname: %d\n", sizeof(room_name));
     
     return FALSE;
 }
@@ -181,6 +182,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char room_name[MAX_LENGTH];
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
             fprintf(stdout, "room_name : %s\n", room_name);
+            fprintf(stdout, "size of room_name : %s\n", sizeof(room_name));
             fflush(stdout);
             gpointer the_room = g_tree_lookup(room_tree, room_name);
             if(the_room == NULL) {
