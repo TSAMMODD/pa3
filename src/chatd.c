@@ -48,6 +48,7 @@ struct user {
     time_t timeout;
     char *username;
     char *password;
+    char *room_name;
 };
 
 struct room {
@@ -112,7 +113,12 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     sprintf(the_port, "%d", conn_key->sin_port);
     strcat(users, the_port);
     strcat(users, " Current room: ");
-    strcat(users, "NULL\n");
+    if(user->room_name == NULL) {
+        strcat(users, "NULL\n");
+    } else {
+        strcat(users, user->room_name);
+        strcat(users, "\n");
+    }
     
     return FALSE;
 }
@@ -258,6 +264,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 fprintf(stdout, "the_room != NULL\n");
                 fprintf(stdout, "the name we found: %s\n", the_room->room_name);
                 fflush(stdout);
+                user->room_name = the_room->room_name;
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
             memset(user->username, '\0', strlen(user->username));
