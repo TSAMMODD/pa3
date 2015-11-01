@@ -56,8 +56,8 @@ struct room {
     GList *users;
 };
 struct userstruct {
-    char *username;
-    char *password;
+    char username[MAX_USER_LENGTH];
+    char password[MAX_USER_LENGTH];
     struct sockaddr_in *addr;
 };
 
@@ -204,7 +204,7 @@ void print_userinfo(gpointer data, gpointer user_data) {
         fflush(stdout);
         return;
     }
-    fprintf(stdout, "Username: %s, password: %s\n",user->username, user->password);
+    fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
     fflush(stdout);
 }
 
@@ -304,40 +304,23 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
         } else if(strncmp(recvMessage, "/user", 5) == 0){
             char user_name[MAX_LENGTH];
-            fprintf(stdout, "B4 strncpy\n");
-            fflush(stdout); 
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             memset(recvMessage, '\0', strlen(recvMessage));
-            fprintf(stdout, "B4 read\n");
-            fflush(stdout); 
+
+
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
             if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
             recvMessage[size] = '\0';
-            fprintf(stdout, "B4 strncpy\n");
-            fflush(stdout); 
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
-            struct userstruct userInformation;
-            fprintf(stdout, "B4 strcpy\n");
-            fflush(stdout); 
-            userInformation.username = user_name; 
-            userInformation.password = recvMessage;
-            userInformation.addr = user_key;
-            fprintf(stdout, "B4 append\n");
-            fflush(stdout); 
-
-            fprintf(stdout, "username: %s\n", userInformation.username);
-            fflush(stdout); 
-
-
-            userinfo = g_list_append(userinfo, &userInformation);
-            fprintf(stdout, "Size: %d\n", g_list_length(userinfo));
-            fflush(stdout); 
+            struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
+            memset(userInformation->username, '\0', MAX_USER_LENGTH);
+            strcpy(userInformation->username, user_name);
+            userinfo = g_list_append(userinfo, userInformation);
             g_list_foreach(userinfo, print_userinfo, NULL);
-
             fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             fflush(stdout); 
         }else {
