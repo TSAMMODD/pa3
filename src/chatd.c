@@ -58,7 +58,6 @@ struct room {
 struct userstruct {
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
-    struct sockaddr_in *addr;
 };
 
 /* This can be used to build instances of GTree that index on
@@ -322,18 +321,32 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             }
         } else if(strncmp(recvMessage, "/user", 5) == 0){
-            char user_name[MAX_LENGTH];
+            char user_name[MAX_USER_LENGTH];
+            char password[MAX_USER_LENGTH];
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
-            strncpy(user->username, user_name, MAX_USER_LENGTH);
             memset(recvMessage, '\0', strlen(recvMessage));
-
-
+            
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
+
             if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
+                 
             recvMessage[size] = '\0';
+            strncpy(password, recvMessage, sizeof(recvMessage));
+           
+             GList *l;
+            for(l = userinfo; l != NULL; l = l->next) {
+                struct userstruct *user = (struct userstruct *) l->data;
+                char *username = (char *) user->username;
+                if(strcmp(username, user_name) == 0){
+                    fprintf(stdout, "User exists");
+                    fflush(stdout);
+                }
+            }
+
+            strncpy(user->username, user_name, MAX_USER_LENGTH);
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
             memset(userInformation->username, '\0', MAX_USER_LENGTH);
