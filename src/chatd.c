@@ -255,18 +255,19 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
             struct room *the_room = g_tree_search(room_tree, search_string_cmp, room_name);
             if(the_room == NULL) {
-                strcat(message, "The room ");
+                strcat(message, "The room '");
                 strcat(message, room_name);
-                strcat(message, " does not exist.\n");
+                strcat(message, "' does not exist.\n");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
                     exit(1);
                 }
             } else {
-                fprintf(stdout, "the_room != NULL\n");
-                fprintf(stdout, "the name we found: %s\n", the_room->room_name);
-                fflush(stdout);
+                strcat(message, "You have succesfully joined '");
+                strcat(message, room_name);
+                strcat(message, "'.\n");
+                size = SSL_write(user->ssl, message, strlen(message));
                 user->room_name = the_room->room_name;
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
