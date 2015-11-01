@@ -43,11 +43,26 @@ struct connection {
 };
 
 /**/
-/*
-gboolean print_tree(gpointer key, gpointer value, gpointer data) {
+gboolean list_users(gpointer key, gpointer value, gpointer data) {
+    fprintf(stdout, "before list users\n");
+    fflush(stdout);
+    UNUSED(key);
     struct connection *conn = (struct connection *) value;
+    char *users = (char *) data;
+    
+    strcpy(users, "User => User name: ");
+    strcat(users, "NULL");
+    strcat(users, " IP adress: ");
+    strcat(users, conn->addr);
+    strcat(users, " Port number: ");
+    char the_port[20];
+    sprintf(the_port, "%d", conn->port);
+    strcat(users, the_port);
+    strcat(users, " Current room: ");
+    strcat(users, "NULL\n");
+    
+    return FALSE;
 }
-*/
 
 /**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
@@ -77,10 +92,10 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct connection *conn = (struct connection *) value;
     char *recvMessage = (char *) data;
-    int sizerly = 0;
+    int size = 0;
     if(conn->connfd != -1) {
-        sizerly = SSL_write(conn->ssl, recvMessage, strlen(recvMessage));
-        if(sizerly < 0){
+        size = SSL_write(conn->ssl, recvMessage, strlen(recvMessage));
+        if(size < 0){
             perror("Error writing to client");
             exit(1);
         }
@@ -126,12 +141,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
             recvMessage[size] = '\0';
             
-            if(strcmp(recvMessage, "/who") == 0) {
-                fprintf(stdout, "who!!!!!\n");
-                fflush(stdout);
+            if(strncmp(recvMessage, "/who", 4) == 0) {
+                char users[MAX_LENGTH];
+                memset(users, '\0', sizeof(users));
+                int size = 0;
+                g_tree_foreach(tree, list_users, &users);
+                size = SSL_write(conn->ssl, users, strlen(users));
+                if(size < 0){
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                
             } else {
-                fprintf(stdout, "else!!!!!\n");
-                fflush(stdout);
                 g_tree_foreach(tree, send_to_all, recvMessage);
             }
         }

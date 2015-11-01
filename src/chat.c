@@ -235,14 +235,14 @@ void readline_callback(char *line)
         rl_set_prompt(prompt);
         return;
     }
+    /* Sent the buffer to the server. */
     if (strncmp("/who", line, 4) == 0) {
         /* Query all available users */
+        SSL_write(server_ssl, line, strlen(line));
         return;
     }
-    /* Sent the buffer to the server. */
     snprintf(buffer, 255, "Message: %s\n", line);
     SSL_write(server_ssl, line, strlen(line));
-    //write(STDOUT_FILENO, buffer, strlen(buffer));
     fsync(STDOUT_FILENO);
 }
 
