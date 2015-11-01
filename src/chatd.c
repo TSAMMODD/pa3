@@ -182,14 +182,12 @@ gboolean send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in *addr = (struct sockaddr_in *) data;
     char *recvMessage = (char *) user_data;
     int size = 0;
-    
     struct user *user = g_tree_search(user_tree, sockaddr_in_cmp, addr);
 
     if(user == NULL) {
         perror("Error finding user.\n");
         exit(1);
     }
-
     size = SSL_write(user->ssl, recvMessage, strlen(recvMessage));
     if(size < 0){
         perror("Error writing to client.");
