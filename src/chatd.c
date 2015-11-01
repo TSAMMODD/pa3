@@ -28,6 +28,7 @@
 #define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
+#define TIMEOUT_SECONDS 300
 
 /*  */
 static GTree* user_tree;
@@ -40,6 +41,7 @@ FILE *fp;
 struct user {
     int connfd;
     SSL *ssl;
+    time_t timeout;
 };
 
 struct room {
@@ -134,7 +136,8 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     int size = 0;
     if(FD_ISSET(user->connfd, rfds)){
         memset(recvMessage, '\0', strlen(recvMessage));
-        size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
+        size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage)); 
+        time(&user->timeout);
         if(size < 0 ){
             perror("ssl_read fail!\n");
             exit(1);
@@ -159,7 +162,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             SSL_free(user->ssl);
         }
         recvMessage[size] = '\0';
-
         if(strncmp(recvMessage, "/who", 4) == 0) {
             char users[MAX_LENGTH];
             memset(users, '\0', sizeof(users));
@@ -238,6 +240,34 @@ gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
     fflush(stdout);
     g_list_foreach(users, print_users, NULL);
+}
+
+gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *user_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;
+
+    time_t now;
+    time(&now);
+    
+    fflush(stdout);
+    if(now - user->timeout > TIMEOUT_SECONDS){
+        g_tree_remove(user_tree, user_key);
+        char buf[sizeof "2011-10-08T07:07:09Z"];
+        memset(buf, 0, sizeof(buf));
+        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+        /* Write disconnect info to screen. */
+        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(stdout);
+        /* Write disconnect info to file. */
+        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(fp);
+        SSL_shutdown(user->ssl);
+        close(user->connfd);
+        user->connfd = -1;
+        SSL_free(user->ssl);
+    }
+
+    return FALSE;
 }
 
 int main(int argc, char **argv) {
@@ -324,7 +354,8 @@ int main(int argc, char **argv) {
         tv.tv_usec = 0;
 
         FD_ZERO(&rfds);
-
+        
+        g_tree_foreach(user_tree, check_timeout, NULL);
         g_tree_foreach(user_tree, is_greater_fd, &highestFD);
         g_tree_foreach(user_tree, fd_set_nodes, &rfds);
         
@@ -367,7 +398,9 @@ int main(int argc, char **argv) {
                 }
 
                 g_tree_insert(user_tree, addr, user);
-
+                
+                time(&user->timeout);
+                
                 /* Creating the timestamp. */
                 time_t now;
                 time(&now);
@@ -383,6 +416,7 @@ int main(int argc, char **argv) {
             }
 
             g_tree_foreach(user_tree, check_connection, &rfds);
+
 
             /* Close the logfile. */
             fclose(fp);
