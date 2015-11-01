@@ -85,6 +85,17 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     return 0;
 }
 
+int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
+    const struct sockaddr_in *_addr1 = addr1;
+    const struct sockaddr_in *_addr2 = addr2;
+
+    int retval = sockaddr_in_cmp(_addr1, _addr2);
+    
+    if(retval == -1) return 1;
+    if(retval == 1) return -1;
+    else return 0;
+}
+
 int search_string_cmp(const void *addr1, const void *addr2) {
     const char *_addr1 = addr1;
     const char *_addr2 = addr2;
@@ -178,10 +189,15 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
 } 
 
 gboolean send_message_to_user(gpointer data, gpointer user_data) {
-    struct sockaddr_in *addr = (struct sockaddr_in *) data;
+    struct sockaddr_in addr = *(struct sockaddr_in *) data;
+    fprintf(stdout, "sockaddr_in.sin_port: %d\n", addr.sin_port);
+    fflush(stdout);
     char *recvMessage = (char *) user_data;
     int size = 0;
-    struct user *user = g_tree_search(user_tree, sockaddr_in_cmp, addr);
+    struct user *user = g_tree_search(user_tree, search_sockaddr_in_cmp, &addr);
+
+    fprintf(stdout, "user->connfd: %d\n", user->connfd);
+    fflush(stdout);
 
     if(user == NULL) {
         perror("Error finding user.\n");
@@ -364,6 +380,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             } else {
                 //g_tree_foreach(user_tree, send_message_to_user, recvMessage);
                 struct room *the_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                fprintf(stdout, "Sending to room: %s - number of users: %d\n", the_room->room_name, g_list_length(the_room->users));
                 g_list_foreach(the_room->users, send_message_to_user, recvMessage);
             }
         }
