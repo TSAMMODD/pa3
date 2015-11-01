@@ -72,6 +72,21 @@ gboolean list_users(gpointer key, gpointer value, gpointer data) {
 }
 
 /**/
+gboolean list_rooms(gpointer key, gpointer value, gpointer data) {
+    UNUSED(value);
+    fprintf(stdout, "before list rooms\n");
+    fflush(stdout);
+    char* room_name = (char *) key;
+    char *users = (char *) data;
+    
+    strcat(users, "Room => User name: ");
+    strcat(users, room_name);
+    strcat(users, "\n");
+    
+    return FALSE;
+}
+
+/**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -158,7 +173,21 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 exit(1);
             }
 
-        } else {
+        } else if(strncmp(recvMessage, "/list", 5) == 0) {
+            char rooms[MAX_LENGTH];
+            memset(rooms, '\0', sizeof(rooms));
+            int size = 0;
+            g_tree_foreach(room_tree, list_rooms, &rooms);
+            size = SSL_write(user->ssl, rooms, strlen(rooms));
+            if(size < 0) {
+                perror("Error writing to client");
+                exit(1);
+            }
+        } else if(strncmp(recvMessage, "/join", 5) == 0) {
+           fprintf(stdout, "JOIN\n"); 
+            fflush(stdout);
+        }
+        else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
     }
