@@ -84,8 +84,12 @@ int search_string_cmp(const void *addr1, const void *addr2) {
     else  return 0;
 }
 
-/**/
-gboolean list_users(gpointer key, gpointer value, gpointer data) {
+/* A method that is used when we receive the command '/who' and has
+ * the purpose of listing all necessary information about a given user. 
+ * It is sent as a parameter to a g_tree_foreach that iterates through
+ * all users in our user_tree and prints out said information about every user.
+ */
+gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
     char *users = (char *) data;
@@ -103,8 +107,12 @@ gboolean list_users(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/**/
-gboolean list_rooms(gpointer key, gpointer value, gpointer data) {
+/* A method that is used when we receive the command '/list' and has
+ * the purpose of listing all necessary information about a given room. 
+ * It is sent as a parameter to a g_tree_foreach that iterates through
+ * all rooms in our room_tree and prints out said information about every room.
+ */
+gboolean list_roominfo(gpointer key, gpointer value, gpointer data) {
     UNUSED(value);
     char* room_name = (char *) key;
     char *rooms = (char *) data;
@@ -195,7 +203,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char users[MAX_LENGTH];
             memset(users, '\0', sizeof(users));
             int size = 0;
-            g_tree_foreach(user_tree, list_users, &users);
+            g_tree_foreach(user_tree, list_userinfo, &users);
             size = SSL_write(user->ssl, users, strlen(users));
             if(size < 0){
                 perror("Error writing to client");
@@ -206,7 +214,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char rooms[MAX_LENGTH];
             memset(rooms, '\0', sizeof(rooms));
             int size = 0;
-            g_tree_foreach(room_tree, list_rooms, &rooms);
+            g_tree_foreach(room_tree, list_roominfo, &rooms);
             size = SSL_write(user->ssl, rooms, strlen(rooms));
             if(size < 0) {
                 perror("Error writing to client");
