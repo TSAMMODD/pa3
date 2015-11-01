@@ -28,7 +28,6 @@
 #define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
-#define MAX_USER_LENGTH 48
 
 /*  */
 static GTree* user_tree;
@@ -42,8 +41,8 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
-    char username[MAX_USER_LENGTH];
-    char password[MAX_USER_LENGTH];
+    char *username;
+    char *password;
 };
 
 struct room {
@@ -185,7 +184,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
             fprintf(stdout, "THE ROOM BEFORE SEARCH: %s\n", room_name);
             //gpointer the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
-            GList *the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
+            struct room *the_room = g_tree_search(room_tree, strcmp, room_name);
             if(the_room == NULL) {
                 fprintf(stdout, "the_room == NULL\n");
                 fflush(stdout);
@@ -194,23 +193,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 fflush(stdout);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
-            memset(user->username, '\0', strlen(user->username));
-            memset(user->password, '\0', strlen(user->password));
-
-            char user_name[MAX_LENGTH];
-            strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
-            strncpy(user->username, user_name, MAX_USER_LENGTH);
-            memset(recvMessage, '\0', strlen(recvMessage));
-            size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
-            if(size < 0){
-                perror("Error reading password");
-                exit(1);
-            }
-            recvMessage[size] = '\0';
-            strncpy(user->password, recvMessage, MAX_USER_LENGTH);
-         
-            fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
-            fflush(stdout); 
+        
         }else {
             g_tree_foreach(user_tree, send_to_all, recvMessage);
         }
@@ -276,18 +259,22 @@ int main(int argc, char **argv) {
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
+    char *room_name_3 = g_new0(char, 1);
     struct room *room_1 = g_new0(struct room, 1);
     struct room *room_2 = g_new0(struct room, 1);
-    //GList *users_1 = g_new0(GList, 1);
-    //GList *users_2 = g_new0(GList, 1);
+    struct room *room_3 = g_new0(struct room, 1);
     strcpy(room_name_1, "Room1");
     strcpy(room_name_2, "Room2");
+    strcpy(room_name_3, "Room3");
     room_1->room_name = room_name_1;
     room_2->room_name = room_name_2;
+    room_3->room_name = room_name_3;
     room_1->users = NULL;
     room_2->users = NULL;
+    room_3->users = NULL;
     g_tree_insert(room_tree, room_name_1, room_1);
     g_tree_insert(room_tree, room_name_2, room_2);
+    g_tree_insert(room_tree, room_name_3, room_3);
 
     g_tree_foreach(room_tree, print_rooms, NULL);
 
@@ -374,8 +361,7 @@ int main(int argc, char **argv) {
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
-                memset(user->username, '\0', strlen(user->username));
-                memset(user->password, '\0', strlen(user->password));
+
                 if(user->connfd < 0){
                     perror("Error accepting\n");
                     exit(1);
