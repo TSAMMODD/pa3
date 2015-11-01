@@ -187,7 +187,7 @@ void readline_callback(char *line)
     }
     if (strncmp("/list", line, 5) == 0) {
         /* Query all available chat rooms */
-        if(SSL_write(server_ssl, line, strlen(line) < 0)){
+        if(SSL_write(server_ssl, line, strlen(line)) < 0){
             perror("Error writing /list to server\n");
             exit(1);
         }
