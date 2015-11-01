@@ -230,17 +230,16 @@ void readline_callback(char *line)
             return;
         }
         char *new_user = strdup(&(line[i]));
-        strcat(new_user, ": ");
+        //strcat(new_user, ": ");
         char passwd[48];
         getpasswd("Password: ", passwd, 48);
 
         /* Process and send this information to the server. */
 
         /* Maybe update the prompt. */
-        free(prompt);
-        prompt = new_user; /* What should the new prompt look like? */
-        rl_set_prompt(prompt);
-
+        //free(prompt);
+        //prompt = new_user; /* What should the new prompt look like? */
+        //rl_set_prompt(prompt);
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
             perror("Error writing /user to server\n");
             exit(1);
@@ -340,14 +339,15 @@ int main(int argc, char **argv)
     //bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
 
     int i = 0;
+    /*
     for(; i < argc; i++) {
         fprintf(stdout, "i: %d - %s\n", i, argv[i]);
         fflush(stdout);
     }
-
+    */
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
-        exit(0);
+        exit(1);
     }
 
     server_ssl = SSL_new(ssl_ctx);
@@ -370,27 +370,28 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    fprintf(stdout, "Turing would never use %s\n", SSL_get_cipher(server_ssl));
-    fflush(stdout);
+    //fprintf(stdout, "Turing would never use %s\n", SSL_get_cipher(server_ssl));
+    //fflush(stdout);
 
     server_cert = SSL_get_peer_certificate(server_ssl);
 
     if(server_cert != NULL){
+        /*
         fprintf(stdout, "Server Certificate:\n");
         fflush(stdout);
-
+        */
         str = X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
 
         if(str == NULL){
             perror("X509 subject name error\n");
             exit(1); 
         }
-
+        /*
         fprintf(stdout, "Subject: %s\n", str);
         fflush(stdout);
+        */
         free(str);
         X509_free(server_cert);
-
     }
     else{
         fprintf(stdout, "Server has no certificate!\n");
@@ -443,7 +444,7 @@ int main(int argc, char **argv)
             break;
         }
         if (r == 0) {
-            write(STDOUT_FILENO, "No message?\n>", 12);
+            //write(STDOUT_FILENO, "No message?\n>", 12);
             fsync(STDOUT_FILENO);
             /* Whenever you print out a message, call this
                to reprint the current input line. */
@@ -464,9 +465,10 @@ int main(int argc, char **argv)
                     exit(0);
                 }
 
-                strcat(recvMessage, "\n>");
+                strcat(recvMessage, "\n> ");
                 write(STDOUT_FILENO, recvMessage, strlen(recvMessage));
-                fsync(STDOUT_FILENO);                
+                fsync(STDOUT_FILENO);               
+                rl_redisplay(); 
             }
         }
                 

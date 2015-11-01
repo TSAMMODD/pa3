@@ -32,6 +32,10 @@
 
 /*  */
 static GTree* user_tree;
+
+/*  */
+GList *userinfo;
+
 /*  */
 static GTree* room_tree;
 /* Filepointer for log file */
@@ -49,6 +53,12 @@ struct user {
 struct room {
     char* room_name;
     GList *users;
+};
+
+struct userstruct {
+    char *username;
+    char *password;
+    struct sockaddr_in *addr;
 };
 
 /**/
@@ -121,6 +131,18 @@ gboolean send_to_all(gpointer key, gpointer value, gpointer data) {
 
     return FALSE;
 }
+
+void print_userinfo(gpointer data, gpointer user_data) {
+    struct userstruct *user = (struct userstruct *) data;
+    if(user == NULL){
+        fprintf(stdout, "NULL\n");
+        fflush(stdout);
+        return;
+    }
+    fprintf(stdout, "Username: %s, password: %s\n",user->username, user->password);
+    fflush(stdout);
+}
+
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
@@ -199,6 +221,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             memset(recvMessage, '\0', strlen(recvMessage));
+
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
             if(size < 0){
                 perror("Error reading password");
@@ -206,7 +229,16 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
             recvMessage[size] = '\0';
             strncpy(user->password, recvMessage, MAX_USER_LENGTH);
-         
+            struct userstruct userInformation;
+            strcpy(userInformation.username, user->username);
+            strcpy(userInformation.password, user->password);
+            userInformation.addr = user_key;
+
+            userinfo = g_list_append(userinfo, &userInformation);
+            fprintf(stdout, "Size: %d\n", g_list_length(userinfo));
+            fflush(stdout); 
+            g_list_foreach(userinfo, print_userinfo, NULL);
+
             fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             fflush(stdout); 
         }else {
@@ -272,6 +304,9 @@ int main(int argc, char **argv) {
     user_tree = g_tree_new(sockaddr_in_cmp);
     room_tree = g_tree_new(strcmp);
 
+    userinfo = NULL;
+
+    
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
