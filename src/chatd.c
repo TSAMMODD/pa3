@@ -95,6 +95,21 @@ int search_string_cmp(const void *addr1, const void *addr2) {
     else  return 0;
 }
 
+void print_users(gpointer data, gpointer user_data) {
+    struct sockaddr_in *user = (struct sockaddr_in *) data;
+    fprintf(stdout, "User: %d\n", user->sin_port);
+    fflush(stdout);
+}
+
+
+gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    char *room_name = (char *) key;
+    struct room *room = (struct room *) value;
+    fprintf(stdout, "Room: %s\n", room_name);
+    fflush(stdout);
+    g_list_foreach(room->users, print_users, NULL);
+}
+
 /* A method that is used when we receive the command '/who' and has
  * the purpose of listing all necessary information about a given user. 
  * It is sent as a parameter to a g_tree_foreach that iterates through
@@ -255,28 +270,41 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
             struct room *the_room = g_tree_search(room_tree, search_string_cmp, room_name);
             if(the_room == NULL) {
-                strcat(message, "The room ");
+                strcat(message, "The room '");
                 strcat(message, room_name);
-                strcat(message, " does not exist.\n");
+                strcat(message, "' does not exist.\n");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
                     exit(1);
                 }
             } else {
-                fprintf(stdout, "the_room != NULL\n");
-                fprintf(stdout, "the name we found: %s\n", the_room->room_name);
-                fflush(stdout);
+                if(user->room_name != NULL) {
+                    struct room *previous_room = g_tree_search(room_tree, search_string_cmp, user->room_name);
+                    previous_room->users = g_list_remove(previous_room->users, user_key);
+                }
+                    
                 user->room_name = the_room->room_name;
+                the_room->users = g_list_append(the_room->users, user_key); 
+                g_tree_foreach(room_tree, print_rooms, NULL);
+
+                strcat(message, "You have succesfully joined '");
+                strcat(message, room_name);
+                strcat(message, "'.\n");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
             }
-        }else if(strncmp(recvMessage, "/user", 5) == 0){
+        } else if(strncmp(recvMessage, "/user", 5) == 0){
             char user_name[MAX_LENGTH];
-             fprintf(stdout, "B4 strncpy\n");
+            fprintf(stdout, "B4 strncpy\n");
             fflush(stdout); 
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             memset(recvMessage, '\0', strlen(recvMessage));
-             fprintf(stdout, "B4 read\n");
+            fprintf(stdout, "B4 read\n");
             fflush(stdout); 
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
             if(size < 0){
@@ -314,28 +342,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
     return FALSE;
 } 
-
-
-void print_users(gpointer data, gpointer user_data) {
-    struct sockaddr_in *user = (struct sockaddr_in *) data;
-    //fprintf(stdout, "inside print_users\n");
-    //fflush(stdout);
-}
-
-
-gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
-    char *room_name = (char *) key;
-    struct room *room = (struct room *) value;
-    int users_size = g_list_length(room->users);
-    //fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
-    //fflush(stdout);
-    struct sockaddr_in *user;
-    room->users = g_list_append(room->users, user);
-    int users_size_2 = g_list_length(room->users);
-    //fprintf(stdout, "After append: %s - users.size : %d\n", room_name, users_size_2);  
-    //fflush(stdout);
-    g_list_foreach(room->users, print_users, NULL);
-}
 
 int main(int argc, char **argv) {
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
@@ -458,6 +464,7 @@ int main(int argc, char **argv) {
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
+                user->room_name = NULL;
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
 
                 if(user->connfd < 0){
