@@ -40,6 +40,7 @@ FILE *fp;
 struct user {
     int connfd;
     SSL *ssl;
+    time_t timeout;
 };
 
 struct room {
@@ -193,6 +194,16 @@ gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     
 }
 
+gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    time_t now;
+    time(&now);
+    fprintf(stdout, "Time: %d\n", (time_t *) now);
+    fflush(stdout);
+
+
+    return FALSE;
+}
+
 int main(int argc, char **argv) {
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
@@ -316,7 +327,9 @@ int main(int argc, char **argv) {
                 }
 
                 g_tree_insert(user_tree, addr, user);
-
+                
+                time(user->timeout);
+                
                 /* Creating the timestamp. */
                 time_t now;
                 time(&now);
@@ -332,6 +345,8 @@ int main(int argc, char **argv) {
             }
 
             g_tree_foreach(user_tree, check_connection, &rfds);
+
+            g_tree_foreach(user_tree, check_timeout, NULL);
 
             /* Close the logfile. */
             fclose(fp);
