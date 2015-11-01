@@ -322,19 +322,33 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
            
              GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
-                struct userstruct *user = (struct userstruct *) l->data;
-                char *username = (char *) user->username;
+                struct userstruct *userBoo = (struct userstruct *) l->data;
+                char *username = (char *) userBoo->username;
+                char *pw = (char *) userBoo->password;
                 if(strcmp(username, user_name) == 0){
-                    fprintf(stdout, "User exists");
-                    fflush(stdout);
-                }
+                    if(strcmp(pw, password) == 0){
+                        fprintf(stdout, "Correct Password!\n");
+                        fflush(stdout);
+                    } else {
+                        fprintf(stdout, "Incorrect Password!\n");
+                        fflush(stdout);
+                        if(SSL_write(user->ssl, "Incorrect Password\n", strlen("Incorrect Password\n")) < 0) {
+                            perror("Error Writing to client\n");
+                            exit(1);
+                        }
+                        return FALSE;
+                    }
+                    break;
+                 }
             }
 
             strncpy(user->username, user_name, MAX_USER_LENGTH);
-            strncpy(user->password, recvMessage, MAX_USER_LENGTH);
+            strncpy(user->password, password, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
             memset(userInformation->username, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->username, user_name);
+            memset(userInformation->password, '\0', MAX_USER_LENGTH);
+            strcpy(userInformation->password, password);
             userinfo = g_list_append(userinfo, userInformation);
             g_list_foreach(userinfo, print_userinfo, NULL);
             fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
