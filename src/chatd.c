@@ -161,28 +161,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
-/* Function that is called when we get a 'bye' message from the client. */
-/*
-void bye(struct sockaddr_in *conn_key, struct connection *conn) {
-    fprintf(stdout, "inside bye function\n");
-    fflush(stdout);
-    g_tree_remove(tree, conn_key);
-    time_t now;
-    time(&now);
-    char buf[sizeof "2011-10-08T07:07:09Z"];
-    memset(buf, 0, sizeof(buf));
-    strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-    fprintf(stdout, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-    fflush(stdout);
-    fprintf(fp, "%s : %s:%d %s \n", buf, conn->addr, conn->port, "disconnected");
-    fflush(fp);
-    SSL_shutdown(conn->ssl);
-    close(conn->connfd);
-    conn->connfd = -1;
-    SSL_free(conn->ssl);
-}
-*/
-
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
 int sockaddr_in_cmp(const void *addr1, const void *addr2) {
