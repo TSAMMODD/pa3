@@ -50,6 +50,40 @@ struct room {
     GList *users;
 };
 
+/* This can be used to build instances of GTree that index on
+   the address of a connection. */
+int sockaddr_in_cmp(const void *addr1, const void *addr2) {
+    const struct sockaddr_in *_addr1 = addr1;
+    const struct sockaddr_in *_addr2 = addr2;
+
+    /* If either of the pointers is NULL or the addresses
+       belong to different families, we abort. */
+    g_assert(_addr1 != NULL);
+    g_assert(_addr2 != NULL);
+    g_assert(_addr1->sin_family == _addr2->sin_family);
+
+    if (_addr1->sin_addr.s_addr < _addr2->sin_addr.s_addr) {
+        return -1;
+    } else if (_addr1->sin_addr.s_addr > _addr2->sin_addr.s_addr) {
+        return 1;
+    } else if (_addr1->sin_port < _addr2->sin_port) {
+        return -1;
+    } else if (_addr1->sin_port > _addr2->sin_port) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int search_string_cmp(const void *addr1, const void *addr2) {
+    const char *_addr1 = addr1;
+    const char *_addr2 = addr2;
+    int ret = strcmp(_addr1, _addr2);
+    if(ret < 0) return 1;
+    else if(ret > 0) return -1; 
+    else  return 0;
+}
+
 /**/
 gboolean list_users(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
@@ -184,12 +218,13 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
             fprintf(stdout, "THE ROOM BEFORE SEARCH: %s\n", room_name);
             //gpointer the_room = g_tree_search(room_tree, strcmp, (const char *) room_name);
-            struct room *the_room = g_tree_search(room_tree, strcmp, room_name);
+            struct room *the_room = g_tree_search(room_tree, search_string_cmp, room_name);
             if(the_room == NULL) {
                 fprintf(stdout, "the_room == NULL\n");
                 fflush(stdout);
             } else {
                 fprintf(stdout, "the_room != NULL\n");
+                fprintf(stdout, "the name we found: %s\n", the_room->room_name);
                 fflush(stdout);
             }
         }else if(strncmp(recvMessage, "/user", 5) == 0){
@@ -202,30 +237,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
-/* This can be used to build instances of GTree that index on
-   the address of a connection. */
-int sockaddr_in_cmp(const void *addr1, const void *addr2) {
-    const struct sockaddr_in *_addr1 = addr1;
-    const struct sockaddr_in *_addr2 = addr2;
-
-    /* If either of the pointers is NULL or the addresses
-       belong to different families, we abort. */
-    g_assert(_addr1 != NULL);
-    g_assert(_addr2 != NULL);
-    g_assert(_addr1->sin_family == _addr2->sin_family);
-
-    if (_addr1->sin_addr.s_addr < _addr2->sin_addr.s_addr) {
-        return -1;
-    } else if (_addr1->sin_addr.s_addr > _addr2->sin_addr.s_addr) {
-        return 1;
-    } else if (_addr1->sin_port < _addr2->sin_port) {
-        return -1;
-    } else if (_addr1->sin_port > _addr2->sin_port) {
-        return 1;
-    }
-
-    return 0;
-}
 
 void print_users(gpointer data, gpointer user_data) {
     struct sockaddr_in *user = (struct sockaddr_in *) data;
@@ -260,22 +271,30 @@ int main(int argc, char **argv) {
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
     char *room_name_3 = g_new0(char, 1);
+    char *room_name_4 = g_new0(char, 1);
     struct room *room_1 = g_new0(struct room, 1);
     struct room *room_2 = g_new0(struct room, 1);
     struct room *room_3 = g_new0(struct room, 1);
+    struct room *room_4 = g_new0(struct room, 1);
     strcpy(room_name_1, "Room1");
     strcpy(room_name_2, "Room2");
     strcpy(room_name_3, "Room3");
+    strcpy(room_name_4, "Room4");
     room_1->room_name = room_name_1;
     room_2->room_name = room_name_2;
     room_3->room_name = room_name_3;
+    room_4->room_name = room_name_4;
     room_1->users = NULL;
     room_2->users = NULL;
     room_3->users = NULL;
+    room_4->users = NULL;
     g_tree_insert(room_tree, room_name_1, room_1);
     g_tree_insert(room_tree, room_name_2, room_2);
     g_tree_insert(room_tree, room_name_3, room_3);
-
+    g_tree_insert(room_tree, room_name_4, room_4);
+    fprintf(stdout, "ROOM-TREE size: %d\n", g_tree_nnodes(room_tree));
+    fflush(stdout);
+    
     g_tree_foreach(room_tree, print_rooms, NULL);
 
     SSL_CTX *ctx;
