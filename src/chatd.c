@@ -190,8 +190,19 @@ int sockaddr_in_cmp(const void *addr1, const void *addr2) {
     return 0;
 }
 
+void print_users(gpointer data, gpointer user_data) {
+    struct user *user = (struct user *) data;
+
+}
+
+
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
-    
+    char *room_name = (char *) key;
+    GList *users = (GList *) value;
+    int users_size = g_list_length(users);
+    g_list_foreach(users, print_users, NULL);
+    fprintf(stdout, "Room name: %s - users.size : %d\n", room_name, users_size);  
+    fflush(stdout);
 }
 
 gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
@@ -211,16 +222,18 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     user_tree = g_tree_new(sockaddr_in_cmp);
     room_tree = g_tree_new(strcmp);
+
+    /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
     GList *users_1 = g_new0(GList, 1);
     GList *users_2 = g_new0(GList, 1);
-    strcpy(room_name, "Room1");
-    strcpy(room_name, "Room2");
-    g_tree_insert(room_tree, room_name, users);
-    g_tree_insert(room_tree, room_name, users);
+    strcpy(room_name_1, "Room1");
+    strcpy(room_name_2, "Room2");
+    g_tree_insert(room_tree, room_name_1, users_1);
+    g_tree_insert(room_tree, room_name_2, users_2);
 
-    g_tree_foreach(room_name, print_rooms, NULL);
+    g_tree_foreach(room_tree, print_rooms, NULL);
 
     SSL_CTX *ctx;
     const SSL_METHOD *method = SSLv3_server_method();
