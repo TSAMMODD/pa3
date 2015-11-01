@@ -280,7 +280,8 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error writing to client");
                 exit(1);
             }
-
+        } else if(strncmp(recvMessage, "/say", 4) == 0) {
+            
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
             g_tree_foreach(room_tree, list_roominfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
