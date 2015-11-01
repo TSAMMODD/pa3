@@ -174,13 +174,24 @@ void readline_callback(char *line)
         /* Process and send this information to the server. */
 
         /* Maybe update the prompt. */
-        free(prompt);
-        prompt = NULL; /* What should the new prompt look like? */
-        rl_set_prompt(prompt);
+        //free(prompt);
+        //prompt = NULL; /* What should the new prompt look like? */
+        //rl_set_prompt(prompt);
+        
+        if(SSL_write(server_ssl, line, strlen(line)) < 0 ){
+            perror("Error Writing /join to server\n");
+            exit(1);
+        }
+
         return;
     }
     if (strncmp("/list", line, 5) == 0) {
         /* Query all available chat rooms */
+        if(SSL_write(server_ssl, line, strlen(line) < 0)){
+            perror("Error writing /list to server\n");
+            exit(1);
+        }
+
         return;
     }
     if (strncmp("/roll", line, 5) == 0) {
@@ -238,11 +249,17 @@ void readline_callback(char *line)
     /* Sent the buffer to the server. */
     if (strncmp("/who", line, 4) == 0) {
         /* Query all available users */
-        SSL_write(server_ssl, line, strlen(line));
+        if(SSL_write(server_ssl, line, strlen(line)) < 0){
+            perror("Error writing /who to server\n");
+            exit(1);
+        }
         return;
     }
     snprintf(buffer, 255, "Message: %s\n", line);
-    SSL_write(server_ssl, line, strlen(line));
+    if(SSL_write(server_ssl, line, strlen(line)) < 0){
+        perror("Error writing message to server\n");
+        exit(1);
+    }
     fsync(STDOUT_FILENO);
 }
 
