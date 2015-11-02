@@ -187,6 +187,7 @@ gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     fprintf(stdout, "Room: %s\n", room_name);
     fflush(stdout);
     g_list_foreach(room->users, print_users, NULL);
+    return FALSE;
 }
 
 /* A method that is used when we receive the command '/who' and has
@@ -553,7 +554,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
             
-            if(user->loginTryTime == NULL){
+            if(user->loginTryTime == 0){
                 time(&user->loginTryTime);
             } else if(now - user->loginTryTime < 5){
                 if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
@@ -877,7 +878,7 @@ int main(int argc, char **argv) {
                 }
                 time(&user->timeout);
                 user->loginTries = 0;
-                user->loginTryTime = NULL;
+                user->loginTryTime = 0;
 
                 g_tree_insert(user_tree, addr, user);
 
