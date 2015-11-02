@@ -29,6 +29,7 @@
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 #define MAX_USER_LENGTH 48
+#define TIMEOUT_SECONDS 5
 
 /*  */
 static GTree* user_tree;
@@ -46,18 +47,27 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
+    time_t loginTryTime;
+    int loginTries;
+    char *room_name;
+    char *nick_name;
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
-    char *room_name;
 };
 
 struct room {
     char* room_name;
     GList *users;
 };
+
 struct userstruct {
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
+};
+
+struct namecompare {
+    char *name;
+    int found;
 };
 
 /* This can be used to build instances of GTree that index on
@@ -111,7 +121,6 @@ void print_users(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
-
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     char *room_name = (char *) key;
     struct room *room = (struct room *) value;
@@ -145,6 +154,21 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
         strcat(users, "\n");
     }
     
+    return FALSE;
+}
+
+gboolean check_user(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;    
+    struct namecompare *namecompare = (struct namecompare *) data;
+
+    if(user->username != NULL && strcmp(user->username, namecompare->name) == 0) {
+        namecompare->found = 1;
+    }
+    if(user->nick_name != NULL && strcmp(user->nick_name, namecompare->name) == 0) {
+        namecompare->found = 1;
+    }
+
     return FALSE;
 }
 
@@ -226,6 +250,33 @@ void print_userinfo(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
+gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *user_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;
+
+    time_t now;
+    time(&now);
+    
+    fflush(stdout);
+    if(now - user->timeout > TIMEOUT_SECONDS){
+        g_tree_remove(user_tree, user_key);
+        char buf[sizeof "2011-10-08T07:07:09Z"];
+        memset(buf, 0, sizeof(buf));
+        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+        /* Write disconnect info to screen. */
+        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(stdout);
+        /* Write disconnect info to file. */
+        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(fp);
+        SSL_shutdown(user->ssl);
+        close(user->connfd);
+        user->connfd = -1;
+        SSL_free(user->ssl);
+    }
+
+    return FALSE;
+}
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
@@ -233,7 +284,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
-    memset(recvMessage, '\0', sizeof(recvMessage));
     int size = 0;
     if(FD_ISSET(user->connfd, rfds)){
         memset(recvMessage, '\0', strlen(recvMessage));
@@ -242,6 +292,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             perror("ssl_read fail!\n");
             exit(1);
         }
+        time(&user->timeout);
         if(size == 0){
             /* Creating the timestamp. */
             time_t now;
@@ -319,14 +370,14 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
                 strcat(message, "You have succesfully joined '");
                 strcat(message, room_name);
-                strcat(message, "'.\n");
+                strcat(message, "'.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
                     exit(1);
                 }
             }
-        } else if(strncmp(recvMessage, "/user", 5) == 0){
+        } else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
@@ -338,37 +389,37 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error reading password");
                 exit(1);
             }
-                 
+
             recvMessage[size] = '\0';
             strncpy(password, recvMessage, sizeof(recvMessage));
-           
-             GList *l;
+            time_t now;
+            time(&now);
+            char buf[sizeof "2011-10-08T07:07:09Z"];
+            memset(buf, 0, sizeof(buf));
+            strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+
+            GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
                 struct userstruct *userBoo = (struct userstruct *) l->data;
                 char *username = (char *) userBoo->username;
                 char *pw = (char *) userBoo->password;
-                if(strcmp(username, user_name) == 0){
-                    time_t now;
-                    time(&now);
-                    char buf[sizeof "2011-10-08T07:07:09Z"];
-                    memset(buf, 0, sizeof(buf));
-                    strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+               
+                if(strcmp(username, user_name) == 0){ 
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
                         strncpy(user->password, password, MAX_USER_LENGTH);
-                        if(SSL_write(user->ssl, "Successfully logged in.\n", strlen("Successfully logged in.\n")) < 0) {
+                        if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
                         fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
                         fflush(stdout);
-                        /* Write disconnect info to file. */
                         fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
                         fflush(fp);
 
                         return FALSE;
                     } else {
-                        if(SSL_write(user->ssl, "Incorrect Password\n", strlen("Incorrect Password\n")) < 0) {
+                        if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
@@ -379,9 +430,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         return FALSE;
                     }
                     break;
-                 }
+                }
             }
 
+            if(user->nick_name == NULL) {
+                user->nick_name = user_name;
+            }
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             strncpy(user->password, password, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
@@ -390,23 +444,67 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(userInformation->password, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->password, password);
             userinfo = g_list_append(userinfo, userInformation);
+            if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
+                perror("Error Writing to client\n");
+                exit(1);
+            }
+            fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered.");
+            fflush(stdout);
+            fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered");
+            fflush(fp);
+
             //g_list_foreach(userinfo, print_userinfo, NULL);
             //fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             //fflush(stdout); 
-        }else {
-            if(user->room_name == NULL) {
-
-                strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.\n");
+        } else if(strncmp(recvMessage, "/nick", 5) == 0) {
+            if(strlen(user->username) == 0) {
+                strcat(message, "You have to be authenticated to set your nickname. Use the command '/user 'username'' to register.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
                     exit(1);
                 }
             } else {
-                //g_tree_foreach(user_tree, send_message_to_user, recvMessage);
+                char new_nick_name[MAX_LENGTH];
+                memset(new_nick_name, '\0', sizeof(new_nick_name));
+                strncpy(new_nick_name, recvMessage + 6, sizeof(recvMessage));
+                struct namecompare *namecompare;
+                namecompare->name = new_nick_name;
+                namecompare->found = 0;
+
+
+                user->nick_name = new_nick_name;
+                strcat(message, "You have succesfully set your nick as ");
+                strcat(message, new_nick_name);
+                strcat(message, ".");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+            }
+        } else {
+            if(user->room_name == NULL) {
+                strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+            } else {
                 struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
-                fprintf(stdout, "Sending to room: %s - number of users: %d\n", the_room->room_name, g_list_length(the_room->users));
-                g_list_foreach(the_room->users, send_message_to_user, recvMessage);
+                char *_recvMessage;
+                if(user->nick_name != NULL) {
+                    _recvMessage = user->nick_name;
+                } else {
+                    char anonymous[MAX_LENGTH];
+                    memset(anonymous, '\0', MAX_LENGTH);
+                    strcat(anonymous, "Anonmymous");
+                    _recvMessage = anonymous;
+                }
+                strcat(_recvMessage, ": ");
+                strcat(_recvMessage, recvMessage);
+                g_list_foreach(the_room->users, send_message_to_user, _recvMessage);
             }
         }
     }
@@ -423,7 +521,7 @@ int main(int argc, char **argv) {
     room_tree = g_tree_new(strcmp);
 
     userinfo = NULL;
-    
+
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
@@ -515,6 +613,7 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
+        g_tree_foreach(user_tree, check_timeout, NULL);
         g_tree_foreach(user_tree, is_greater_fd, &highestFD);
         g_tree_foreach(user_tree, fd_set_nodes, &rfds);
         
@@ -534,8 +633,10 @@ int main(int argc, char **argv) {
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
-                user->room_name = NULL;
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
+                user->nick_name = NULL;
+                user->room_name = NULL;
+                memset(user->username, '\0', sizeof(user->username));
 
                 if(user->connfd < 0){
                     perror("Error accepting\n");
@@ -556,7 +657,7 @@ int main(int argc, char **argv) {
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
-
+                time(&user->timeout);
                 g_tree_insert(user_tree, addr, user);
 
                 /* Creating the timestamp. */
