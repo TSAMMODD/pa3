@@ -46,10 +46,10 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
-    char username[MAX_USER_LENGTH];
-    char password[MAX_USER_LENGTH];
     char *room_name;
     char *nick_name;
+    char username[MAX_USER_LENGTH];
+    char password[MAX_USER_LENGTH];
 };
 
 struct room {
@@ -394,8 +394,13 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/nick", 5) == 0) {
             fprintf(stdout, "NICK\n");
             fflush(stdout);
-
-
+            if(strlen(user->username) == 0) {
+                fprintf(stdout, "not authenticated\n");
+                fflush(stdout);
+            } else {
+                fprintf(stdout, "authenticated\n");
+                fflush(stdout);
+            }
         } else {
             if(user->room_name == NULL) {
 
@@ -546,9 +551,10 @@ int main(int argc, char **argv) {
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
-                user->room_name = NULL;
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
                 user->nick_name = NULL;
+                user->room_name = NULL;
+                memset(user->username, '\0', sizeof(user->username));
 
                 if(user->connfd < 0){
                     perror("Error accepting\n");
