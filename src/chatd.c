@@ -73,7 +73,7 @@ struct namecompare {
 
 struct privatemessage {
     char username[MAX_USER_LENGTH];
-    char message[MAX_LENGTH];
+    char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
 void sigint_handler(int signum) {
@@ -373,21 +373,31 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
             char message[MAX_LENGTH];
+            char messageLine[MAX_USER_LENGTH + MAX_LENGTH + sizeof("[PM]: ")];
             memset(user_name, '\0', sizeof(user_name));
             memset(message, '\0', sizeof(message));
+            memset(messageLine, '\0', sizeof(messageLine));
             
             char str[MAX_LENGTH + MAX_USER_LENGTH];
+            memset(str, '\0', sizeof(str));
             char *ptr;
             strncpy (str, recvMessage + 5, sizeof(recvMessage));
             strtok_r (str, " ", &ptr);
-            strncpy(user_name, str, sizeof(user_name));
-            strncpy(message, ptr, sizeof(message));
+            strcpy(user_name, str);
+            strcpy(message, ptr);
+            if (strlen(user->nick_name) != 0) {
+                strcpy(messageLine, user->nick_name);
+            } else {
+                strcpy(messageLine, "Anonymous");
+            }
+            strcat(messageLine, "[PM]: ");
+            strcat(messageLine, message);
 
             struct privatemessage *pm = (struct privatemessage *) malloc(sizeof(struct privatemessage));
             memset(pm->username, '\0', MAX_USER_LENGTH);
             strcpy(pm->username, user_name);
             memset(pm->message, '\0', MAX_LENGTH);
-            strcpy(pm->message, message);
+            strcpy(pm->message, messageLine);
 
             g_tree_foreach(user_tree, send_private_message, pm);
 
