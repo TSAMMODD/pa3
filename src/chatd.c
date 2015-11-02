@@ -730,7 +730,10 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
                 
-                if(SSL_write(user->ssl, "Welcome", strlen("Welcome")) < 0){
+                char welcome_message[MAX_LENGTH];
+                memset(welcome_message, '\0', MAX_LENGTH);
+                strcat(welcome_message, "Welcome! - Please authenticate youself with the command '/user <username>' before you start using the chat server.");
+                if(SSL_write(user->ssl, welcome_message, strlen(welcome_message)) < 0){
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
