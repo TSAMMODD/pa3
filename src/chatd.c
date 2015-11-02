@@ -315,7 +315,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
                 strcat(message, "You have succesfully joined '");
                 strcat(message, room_name);
-                strcat(message, "'.\n");
+                strcat(message, "'.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
@@ -353,7 +353,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
                         strncpy(user->password, password, MAX_USER_LENGTH);
-                        if(SSL_write(user->ssl, "Successfully logged in.\n", strlen("Successfully logged in.\n")) < 0) {
+                        if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
@@ -364,7 +364,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
                         return FALSE;
                     } else {
-                        if(SSL_write(user->ssl, "Incorrect Password\n", strlen("Incorrect Password\n")) < 0) {
+                        if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
@@ -389,7 +389,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(userInformation->password, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->password, password);
             userinfo = g_list_append(userinfo, userInformation);
-            if(SSL_write(user->ssl, "Successfully registered.\n", strlen("Successfully registered.\n")) < 0) {
+            if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
                 perror("Error Writing to client\n");
                 exit(1);
             }
