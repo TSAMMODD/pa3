@@ -449,23 +449,55 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
             strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
+
+            struct namecompare namecompare;
+            namecompare.name = user_name;
+            namecompare.found = 0;
+            namecompare.curruser_key = user_key;
             
+            g_tree_foreach(user_tree, check_user, &namecompare);
 
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
-
             if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
-
             recvMessage[size] = '\0';
+    
+            if(namecompare.found) {
+                strcat(message, "You cannot register/login as the user '");
+                strcat(message, user_name);
+                strcat(message, "' because some user either has it as a username or nick.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                return FALSE;
+            }
+
+            if(strlen(user_name) == 0) {
+                strcat(message, "The username cannot be empty.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                return FALSE;
+            }
+
             if(strlen(user->username) != 0){
-                if(SSL_write(user->ssl, "You are already logged in.", strlen("You are already logged in.")) < 0) {
+                char errorMsg[MAX_LENGTH];
+                strcat(errorMsg, "You are already logged in as '");
+                strcat(errorMsg, user->username);
+                strcat(errorMsg, "'.");
+                if(SSL_write(user->ssl, errorMsg, strlen(errorMsg)) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
                 }
                 return FALSE;
             }
+
             strncpy(password, recvMessage, sizeof(recvMessage));
             time_t now;
             time(&now);
@@ -475,7 +507,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             
             if(user->loginTryTime == NULL){
                 time(&user->loginTryTime);
-            }else if(now - user->loginTryTime < 5){
+            } else if(now - user->loginTryTime < 5){
                 if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
