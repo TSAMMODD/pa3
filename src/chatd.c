@@ -420,29 +420,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
 
-            if(user->loginTries > 2){
-                if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
-                    perror("Error Writing to client\n");
-                    exit(1);
-                }
-                g_tree_remove(user_tree, user_key);
-                if(user->room_name != NULL) {
-                    struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
-                    previous_room->users = g_list_remove(previous_room->users, user_key);
-                }
-                SSL_shutdown(user->ssl);
-                close(user->connfd);
-                user->connfd = -1;
-                SSL_free(user->ssl);
-
-                fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
-                fflush(stdout);
-                fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
-                fflush(fp);
-
-
-                return FALSE;
-            }
+           
 
             GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
@@ -459,22 +437,48 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
-
+                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authenticated");
+                        fflush(stdout);
+                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authenticated");
+                        fflush(fp);
                         return FALSE;
                     }
-                 else {
-                    user->loginTries = user->loginTries + 1;
-                    if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
-                        perror("Error Writing to client\n");
-                        exit(1);
+                    else {
+                        user->loginTries = user->loginTries + 1;
+
+                        if(user->loginTries > 2){
+                            if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
+                                perror("Error Writing to client\n");
+                                exit(1);
+                            }
+                            g_tree_remove(user_tree, user_key);
+                            if(user->room_name != NULL) {
+                                struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
+                                previous_room->users = g_list_remove(previous_room->users, user_key);
+                            }
+                            SSL_shutdown(user->ssl);
+                            close(user->connfd);
+                            user->connfd = -1;
+                            SSL_free(user->ssl);
+
+                            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
+                            fflush(stdout);
+                            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
+                            fflush(fp);
+
+                            return FALSE;
+                        }
+                        if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
+                            perror("Error Writing to client\n");
+                            exit(1);
+                        }
+                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                        fflush(stdout);
+                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                        fflush(fp);
+                        return FALSE;
                     }
-                    fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                    fflush(stdout);
-                    fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                    fflush(fp);
-                    return FALSE;
-                }
-                break;
+                    break;
             }
         }
         
