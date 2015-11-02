@@ -77,8 +77,6 @@ struct privatemessage {
 
 void sigint_handler(int signum) {
     UNUSED(signum);
-    /* list */
-    /*
     GList *l = userinfo;
     GList *next;
     while (l != NULL) {
@@ -88,7 +86,8 @@ void sigint_handler(int signum) {
        l = next;
     }
     g_list_free(userinfo);
-    */
+    g_tree_destroy(user_tree);
+    g_tree_destroy(room_tree);
     
     exit(0);
 }
