@@ -109,7 +109,7 @@ struct privatemessage {
 
 /* A handler method that handles what should happen when a user terminates
  * the process, i.e. presses 'CTRL + c' (sends an INT signal). 
- * */
+ */
 void sigint_handler(int signum) {
     UNUSED(signum);
     GList *l = userinfo;
@@ -134,8 +134,9 @@ void sigint_handler(int signum) {
     exit(0);
 }
 
-/* This can be used to build instances of GTree that index on
-   the address of a connection. */
+/* A method that can be used to build instances of a GTree that indexes on
+ * the address of a connection. 
+ */
 gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     UNUSED(user_data);
     const struct sockaddr_in *_addr1 = addr1;
@@ -156,7 +157,7 @@ gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     } else if (_addr1->sin_port > _addr2->sin_port) {
         return 1;
     }
-
+    /* Return 0 if the two addresses were equal. */
     return 0;
 }
 
