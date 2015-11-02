@@ -411,9 +411,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error reading password");
                 exit(1);
             }
-
+    
             recvMessage[size] = '\0';
-
+            if(strlen(user->username) != 0){
+                if(SSL_write(user->ssl, "You are already logged in.", strlen("You are already logged in.")) < 0) {
+                    perror("Error Writing to client\n");
+                    exit(1);
+                }
+                return FALSE;
+            }
             strncpy(password, recvMessage, sizeof(recvMessage));
             time_t now;
             time(&now);
