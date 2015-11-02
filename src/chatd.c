@@ -68,6 +68,7 @@ struct userstruct {
 struct namecompare {
     char *name;
     int found;
+    struct sockaddr_in *curruser_key;
 };
 
 
@@ -76,7 +77,20 @@ struct privatemessage {
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
+void free_func(void * data){
+}
+
 void sigint_handler(int signum) {
+    GList *l = userinfo;
+    while (l != NULL)
+    {
+       GList *next = l->next;
+       free(l->data);
+       userinfo = g_list_delete_link(userinfo, l); 
+              
+       l = next;
+    }
+    //free_func(user_tree);
     fprintf(stdout, "SIGINT\n");
     fflush(stdout);
     exit(0);
@@ -203,9 +217,9 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;    
     struct namecompare *namecompare = (struct namecompare *) data;
 
-    if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
+    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         namecompare->found = 1;
-    } else if(strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
+    } else if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
         namecompare->found = 1;
     }
 
@@ -353,10 +367,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         memset(message, '\0', sizeof(message));
         int size = 0;
         if(strlen(user->username) == 0){
-            if(strncmp(recvMessage, "/user", 5) == 0){
-                //yay
-            }
-            else{
+            if(strncmp(recvMessage, "/user", 5) != 0){
                 if(SSL_write(user->ssl, "You have to log in or register with '/user <username>'", strlen("You have to log in or register with '/user <username>'")) < 0){
                     perror("Error Writing To Client");
                 }
@@ -448,22 +459,55 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
             strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
-           
-            size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
 
-                       if(size < 0){
+            struct namecompare namecompare;
+            namecompare.name = user_name;
+            namecompare.found = 0;
+            namecompare.curruser_key = user_key;
+            
+            g_tree_foreach(user_tree, check_user, &namecompare);
+
+            size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
+            if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
-    
             recvMessage[size] = '\0';
+    
+            if(namecompare.found) {
+                strcat(message, "You cannot register/login as the user '");
+                strcat(message, user_name);
+                strcat(message, "' because some user either has it as a username or nick.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                return FALSE;
+            }
+
+            if(strlen(user_name) == 0) {
+                strcat(message, "The username cannot be empty.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
+                return FALSE;
+            }
+
             if(strlen(user->username) != 0){
-                if(SSL_write(user->ssl, "You are already logged in.", strlen("You are already logged in.")) < 0) {
+                char errorMsg[MAX_LENGTH];
+                strcat(errorMsg, "You are already logged in as '");
+                strcat(errorMsg, user->username);
+                strcat(errorMsg, "'.");
+                if(SSL_write(user->ssl, errorMsg, strlen(errorMsg)) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
                 }
                 return FALSE;
             }
+
             strncpy(password, recvMessage, sizeof(recvMessage));
             time_t now;
             time(&now);
@@ -473,7 +517,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             
             if(user->loginTryTime == NULL){
                 time(&user->loginTryTime);
-            }else if(now - user->loginTryTime < 5){
+            } else if(now - user->loginTryTime < 5){
                 if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
@@ -585,6 +629,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 struct namecompare namecompare;
                 namecompare.name = new_nick_name;
                 namecompare.found = 0;
+                namecompare.curruser_key = user_key;
 
                 g_tree_foreach(user_tree, check_user, &namecompare);
 
