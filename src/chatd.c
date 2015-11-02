@@ -374,7 +374,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             if(the_room == NULL) {
                 strcat(message, "The room '");
                 strcat(message, room_name);
-                strcat(message, "' does not exist.\n");
+                strcat(message, "' does not exist.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
@@ -402,7 +402,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
-            strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
+            int i = 5;
+            while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
+            strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
            
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
