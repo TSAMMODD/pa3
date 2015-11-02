@@ -68,6 +68,7 @@ struct userstruct {
 struct namecompare {
     char *name;
     int found;
+    struct sockaddr_in *curruser_key;
 };
 
 
@@ -203,7 +204,9 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;    
     struct namecompare *namecompare = (struct namecompare *) data;
 
-    if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
+    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) == 0) {
+        namecompare = 0;
+    } else if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         namecompare->found = 1;
     } else if(strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
         namecompare->found = 1;
@@ -575,6 +578,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 struct namecompare namecompare;
                 namecompare.name = new_nick_name;
                 namecompare.found = 0;
+                namecompare.curruser_key = user_key;
 
                 g_tree_foreach(user_tree, check_user, &namecompare);
 
