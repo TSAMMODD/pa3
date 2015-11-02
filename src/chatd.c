@@ -70,6 +70,12 @@ struct namecompare {
     int found;
 };
 
+void sigint_handler(int signum) {
+    fprintf(stdout, "SIGINT\n");
+    fflush(stdout);
+    exit(0);
+}
+
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
 int sockaddr_in_cmp(const void *addr1, const void *addr2) {
@@ -602,6 +608,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 } 
 
 int main(int argc, char **argv) {
+    signal(SIGINT, sigint_handler);
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
     int listen_sock;

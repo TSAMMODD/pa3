@@ -86,20 +86,7 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
 
 
 
-/* If someone kills the client, it should still clean up the readline
-   library, otherwise the terminal is in a inconsistent state. We set
-   active to 0 to get out of the loop below. Also note that the select
-   call below may return with -1 and errno set to EINTR. Do not exit
-   select with this error. */
-void sigint_handler(int signum)
-{
-    active = 0;
 
-    /* We should not use printf inside of signal handlers, this is not
-     * considered safe. We may, however, use write() and fsync(). */
-    write(STDOUT_FILENO, "Terminated.\n", 12);
-    fsync(STDOUT_FILENO);
-}
 
 
 /* The next two variables are used to access the encrypted stream to
@@ -108,7 +95,10 @@ void sigint_handler(int signum)
  * server_ssl and the SSL API of OpenSSL.
  */
 static int server_fd;
+static int sockfd;
+
 static SSL *server_ssl;
+static SSL_CTX *ssl_ctx;
 
 /* This variable shall point to the name of the user. The initial value
    is NULL. Set this variable to the username once the user managed to be
@@ -124,6 +114,28 @@ static char *chatroom;
  * input. It is good style to indicate the name of the user and the
  * chat room he is in as part of the prompt. */
 static char *prompt;
+
+/* If someone kills the client, it should still clean up the readline
+   library, otherwise the terminal is in a inconsistent state. We set
+   active to 0 to get out of the loop below. Also note that the select
+   call below may return with -1 and errno set to EINTR. Do not exit
+   select with this error. */
+void sigint_handler(int signum)
+{
+    active = 0;
+
+    /* We should not use printf inside of signal handlers, this is not
+     * considered safe. We may, however, use write() and fsync(). */
+    write(STDOUT_FILENO, "Terminated.\n", 12);
+    SSL_shutdown(server_ssl);
+    close(sockfd);
+    SSL_free(server_ssl);
+    SSL_CTX_free(ssl_ctx);
+    rl_callback_handler_remove();
+
+    fsync(STDOUT_FILENO);  
+    exit(0);
+}
 
 /* When a line is entered using the readline library, this function
    gets called to handle the entered line. Implement the code to
@@ -278,7 +290,7 @@ int main(int argc, char **argv)
     SSL_library_init();
     /* Load the error strings for good error reporting */
     SSL_load_error_strings();
-    SSL_CTX *ssl_ctx;
+   
     X509 *server_cert;
     EVP_PKEY *pkey;
     short int s_sport = argv[2];
@@ -287,6 +299,8 @@ int main(int argc, char **argv)
     char *str;    
     char recvMessage[8196];
     char sendMessage[128];
+
+    signal(SIGINT, sigint_handler);
 
     method = SSLv3_client_method();
 
@@ -322,8 +336,7 @@ int main(int argc, char **argv)
      * create here can be used in select calls, so do not forget
      * them.
      */
-    /* Create sockfd */
-    int sockfd;
+    
     /* Create a sockaddress for server and client */
     struct sockaddr_in server, client;
     /* Create and bind a TCP socket */
