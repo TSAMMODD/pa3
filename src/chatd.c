@@ -49,6 +49,7 @@ struct user {
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
     char *room_name;
+    char *nick_name;
 };
 
 struct room {
@@ -233,7 +234,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;
     fd_set *rfds = (fd_set *) data;
     char recvMessage[MAX_LENGTH];
-    memset(recvMessage, '\0', sizeof(recvMessage));
     int size = 0;
     if(FD_ISSET(user->connfd, rfds)){
         memset(recvMessage, '\0', strlen(recvMessage));
@@ -378,6 +378,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                  }
             }
 
+            if(user->nick_name == NULL) {
+                user->nick_name = user_name;
+            }
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             strncpy(user->password, password, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
@@ -389,7 +392,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             //g_list_foreach(userinfo, print_userinfo, NULL);
             //fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             //fflush(stdout); 
-        }else {
+        } else {
             if(user->room_name == NULL) {
 
                 strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.\n");
@@ -399,10 +402,19 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             } else {
-                //g_tree_foreach(user_tree, send_message_to_user, recvMessage);
                 struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
-                fprintf(stdout, "Sending to room: %s - number of users: %d\n", the_room->room_name, g_list_length(the_room->users));
-                g_list_foreach(the_room->users, send_message_to_user, recvMessage);
+                char *_recvMessage;
+                if(user->nick_name != NULL) {
+                    _recvMessage = user->nick_name;
+                } else {
+                    char anonymous[MAX_LENGTH];
+                    memset(anonymous, '\0', MAX_LENGTH);
+                    strcat(anonymous, "Anonmymous");
+                    _recvMessage = anonymous;
+                }
+                strcat(_recvMessage, ": ");
+                strcat(_recvMessage, recvMessage);
+                g_list_foreach(the_room->users, send_message_to_user, _recvMessage);
             }
         }
     }
@@ -532,6 +544,7 @@ int main(int argc, char **argv) {
                 size_t len = sizeof(addr);
                 user->room_name = NULL;
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
+                user->nick_name = NULL;
 
                 if(user->connfd < 0){
                     perror("Error accepting\n");
