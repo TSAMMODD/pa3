@@ -102,20 +102,18 @@ void sigint_handler(int signum) {
        userinfo = g_list_delete_link(userinfo, l); 
        l = next;
     }
-    g_list_free(userinfo);
 
-    /*
-    g_tree_remove(room_tree, "Room1"); 
-    g_tree_remove(room_tree, "Room2"); 
-    g_tree_remove(room_tree, "Room3"); 
-    g_tree_remove(room_tree, "Room4"); 
-    fprintf(stdout, "Lenght of room_tree: %d\n", g_tree_nnodes(room_tree));
-    sleep(5);
-    */
-    
+    g_list_free(userinfo);
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
+
     SSL_CTX_free(ctx);
+    ERR_remove_state(0);
+    //ENGINE_cleanup();
+    //CONF_modules_unload(1);
+    ERR_free_strings();
+    EVP_cleanup();
+    CRYPTO_cleanup_all_ex_data();
     
     exit(0);
 }
