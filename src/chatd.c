@@ -76,6 +76,7 @@ struct privatemessage {
 };
 
 void sigint_handler(int signum) {
+    UNUSED(signum);
     /* list */
     /*
     GList *l = userinfo;
@@ -138,6 +139,7 @@ int search_strcmp(const void *addr1, const void *addr2) {
 }
 
 void print_users(gpointer data, gpointer user_data) {
+    UNUSED(user_data);
     struct sockaddr_in *user = (struct sockaddr_in *) data;
     fprintf(stdout, "User: %d\n", user->sin_port);
     fflush(stdout);
@@ -170,12 +172,17 @@ void user_value_destroy(gpointer data) {
      
 }
 
+/* 
+ * 
+ */
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    UNUSED(data);
     char *room_name = (char *) key;
     struct room *room = (struct room *) value;
     fprintf(stdout, "Room: %s\n", room_name);
     fflush(stdout);
     g_list_foreach(room->users, print_users, NULL);
+    return FALSE;
 }
 
 /* A method that is used when we receive the command '/who' and has
@@ -207,6 +214,7 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
 }
 
 gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    UNUSED(data);
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
 
@@ -331,6 +339,7 @@ gboolean send_message_to_user(gpointer data, gpointer user_data) {
 }
 
 void print_userinfo(gpointer data, gpointer user_data) {
+    UNUSED(user_data);
     struct userstruct *user = (struct userstruct *) data;
     fprintf(stdout, "Inside userinfo\n");
         fflush(stdout);
@@ -540,7 +549,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
             
-            if(user->loginTryTime == NULL){
+            if(user->loginTryTime == 0){
                 time(&user->loginTryTime);
             } else if(now - user->loginTryTime < 5){
                 if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
@@ -864,7 +873,7 @@ int main(int argc, char **argv) {
                 }
                 time(&user->timeout);
                 user->loginTries = 0;
-                user->loginTryTime = NULL;
+                user->loginTryTime = 0;
 
                 g_tree_insert(user_tree, addr, user);
 
