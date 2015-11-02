@@ -70,6 +70,12 @@ struct namecompare {
     int found;
 };
 
+
+struct privatemessage {
+    char username[MAX_USER_LENGTH];
+    char message[MAX_LENGTH];
+};
+
 void sigint_handler(int signum) {
     fprintf(stdout, "SIGINT\n");
     fflush(stdout);
@@ -246,6 +252,22 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
+gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct user *conn = (struct user *) value;
+    struct privatemessage *pm = (struct privatemessage *) data; 
+    int size = 0;
+    if(strcmp(conn->username, pm->username) == 0) {
+        size = SSL_write(conn->ssl, pm->message, strlen(pm->message));
+        if(size < 0) {
+            perror("Error writing to client.");
+            exit(1);
+        }
+    }
+    
+    return FALSE;
+}
+
 gboolean send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in addr = *(struct sockaddr_in *) data;
     fprintf(stdout, "sockaddr_in.sin_port: %d\n", addr.sin_port);
@@ -358,12 +380,16 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char *ptr;
             strncpy (str, recvMessage + 5, sizeof(recvMessage));
             strtok_r (str, " ", &ptr);
-
             strncpy(user_name, str, sizeof(user_name));
             strncpy(message, ptr, sizeof(message));
-            fprintf(stdout, "'%s'  '%s'\n", user_name, message);
-            fflush(stdout);
-            //strncpy(user_name, recvMessage + 5, sizeof(recvMessage));
+
+            struct privatemessage *pm = (struct privatemessage *) malloc(sizeof(struct privatemessage));
+            memset(pm->username, '\0', MAX_USER_LENGTH);
+            strcpy(pm->username, user_name);
+            memset(pm->message, '\0', MAX_LENGTH);
+            strcpy(pm->message, message);
+
+            g_tree_foreach(user_tree, send_private_message, pm);
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
             g_tree_foreach(room_tree, list_roominfo, &message);
