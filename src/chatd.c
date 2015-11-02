@@ -23,6 +23,8 @@
 /* Secure socket layer headers */
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
 
 /* Macros */
 #define UNUSED(x) (void)(x)
@@ -111,6 +113,7 @@ struct privatemessage {
  * */
 void sigint_handler(int signum) {
     UNUSED(signum);
+
     GList *l = userinfo;
     GList *next;
     while (l != NULL) {
@@ -125,9 +128,13 @@ void sigint_handler(int signum) {
     g_tree_destroy(room_tree);
 
     SSL_CTX_free(ctx);
-    ERR_remove_state(0);
-    ERR_free_strings();
+    RAND_cleanup();
+    ENGINE_cleanup();
+    CONF_modules_unload(1);
+    CONF_modules_free();
     EVP_cleanup();
+    ERR_free_strings();
+    ERR_remove_state(0);
     CRYPTO_cleanup_all_ex_data();
     
     exit(0);
@@ -198,15 +205,16 @@ void room_key_destroy(gpointer data) {
 
 void room_value_destroy(gpointer data) {
     struct room *room = (struct room *) data;
-    char* room_name = room->room_name;
     GList* list = room->users;
     while(list != NULL) {
         GList* next = list->next;
-        g_free(list->data);
+        struct sockaddr_in *addr = (struct sockaddr_in *) list->data;
+        g_free(addr);
         room->users = g_list_delete_link(room->users, list);
         list = next;   
     }
-    g_free(room_name);
+
+    g_list_free(room->users);
     g_free(room);
 }
 
