@@ -176,6 +176,9 @@ int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     else return 0;
 }
 
+/* A method that has the same functionality as strcmp, but returns a gint
+ * that is necessary to be able to call g_tree_new_full correctly.
+ */
 gint _strcmp(const void *addr1, const void *addr2, gpointer user_data) {
     UNUSED(user_data);
     return strcmp(addr1, addr2);
