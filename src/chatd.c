@@ -29,7 +29,7 @@
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 #define MAX_USER_LENGTH 48
-#define TIMEOUT_SECONDS 5
+#define TIMEOUT_SECONDS 300
 
 /*  */
 static GTree* user_tree;
