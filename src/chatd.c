@@ -332,7 +332,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 exit(1);
             }
         } else if(strncmp(recvMessage, "/say", 4) == 0) {
-            
+            char user_name[MAX_USER_LENGTH];
+            memset(user_name, '\0', sizeof(user_name);
+
+            //strncpy(user_name, recvMessage + 5, sizeof(recvMessage));
+
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
             g_tree_foreach(room_tree, list_roominfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
