@@ -46,7 +46,12 @@ static GTree* user_tree;
  */
 static GTree* room_tree;
 
-/*  */
+/* The GList struct is used for each element in a doubly-linked list. 
+ * This GList, userinfo, contains as data in each node a 'userstruct' struct that
+ * only contains information about a user's username and password.
+ * This GList maintains information about every user that has ever logged in, and
+ * not only the present user connections, like the user_tree does.
+ */
 static GList *userinfo;
 /* Filepointer for log file */
 FILE *fp;
