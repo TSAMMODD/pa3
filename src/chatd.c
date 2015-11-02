@@ -56,6 +56,7 @@ static GList *userinfo;
 
 /* Filepointer for log file */
 FILE *fp;
+/* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
 SSL_CTX *ctx = NULL;
 
 /* The 'user' struct contains information about a currently connected user. This 
