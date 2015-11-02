@@ -309,7 +309,19 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
         } else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
+            char message[MAX_LENGTH];
             memset(user_name, '\0', sizeof(user_name));
+            memset(message, '\0', sizeof(message));
+            
+            char str[MAX_LENGTH + MAX_USER_LENGTH];
+            char *ptr;
+            strncpy (str, recvMessage + 5, sizeof(recvMessage));
+            strtok_r (str, " ", &ptr);
+
+            strncpy(user_name, str, sizeof(user_name));
+            strncpy(message, ptr, sizeof(message));
+            fprintf(stdout, "'%s'  '%s'\n", user_name, message);
+            fflush(stdout);
             //strncpy(user_name, recvMessage + 5, sizeof(recvMessage));
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
