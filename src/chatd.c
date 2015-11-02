@@ -184,13 +184,16 @@ gint _strcmp(const void *addr1, const void *addr2, gpointer user_data) {
     return strcmp(addr1, addr2);
 }
 
+/* A method that compares two strings together, in our case room names,
+ * and returns the correct values in order for g_tree_search to work correctly.
+ */
 int search_strcmp(const void *addr1, const void *addr2) {
     const char *_addr1 = addr1;
     const char *_addr2 = addr2;
     int ret = strcmp(_addr1, _addr2);
     if(ret < 0) return 1;
     else if(ret > 0) return -1; 
-    else  return 0;
+    else return 0;
 }
 
 void print_users(gpointer data, gpointer user_data) {
