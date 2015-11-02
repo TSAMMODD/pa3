@@ -216,7 +216,10 @@ void readline_callback(char *line)
         char *message = strndup(&(line[j]), j - i - 1);
 
         /* Send private message to receiver. */
-
+        if(SSL_write(server_ssl, line, strlen(line)) < 0){
+            perror("Error writing /say to server\n");
+            exit(1);
+        }
         return;
     }
     if (strncmp("/user", line, 5) == 0) {
