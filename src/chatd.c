@@ -106,6 +106,9 @@ struct privatemessage {
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
+/* A handler method that handles what should happen when a user terminates
+ * the process, i.e. presses 'CTRL + c' (sends an INT signal). 
+ * */
 void sigint_handler(int signum) {
     UNUSED(signum);
     GList *l = userinfo;
