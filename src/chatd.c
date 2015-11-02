@@ -169,7 +169,8 @@ void user_key_destroy(gpointer data) {
 }
 
 void user_value_destroy(gpointer data) {
-     
+    struct user *user = (struct user *) data;
+    g_free(user);     
 }
 
 /* 
@@ -729,7 +730,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
     int listen_sock;
     struct sockaddr_in server;
-    user_tree = g_tree_new(sockaddr_in_cmp);
+    user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(strcmp, NULL, room_key_destroy, room_value_destroy);
 
     userinfo = NULL;
@@ -743,10 +744,10 @@ int main(int argc, char **argv) {
     struct room *room_2 = g_new0(struct room, 1);
     struct room *room_3 = g_new0(struct room, 1);
     struct room *room_4 = g_new0(struct room, 1);
-    strcpy(room_name_1, "Room1");
-    strcpy(room_name_2, "Room2");
-    strcpy(room_name_3, "Room3");
-    strcpy(room_name_4, "Room4");
+    strncpy(room_name_1, "Room1", strlen("Room1"));
+    strncpy(room_name_2, "Room2", strlen("Room2"));
+    strncpy(room_name_3, "Room3", strlen("Room3"));
+    strncpy(room_name_4, "Room4", strlen("Room4"));
     room_1->room_name = room_name_1;
     room_2->room_name = room_name_2;
     room_3->room_name = room_name_3;
@@ -760,9 +761,9 @@ int main(int argc, char **argv) {
     g_tree_insert(room_tree, room_name_3, room_3);
     g_tree_insert(room_tree, room_name_4, room_4);
     
-    g_tree_foreach(room_tree, print_rooms, NULL);
+    //g_tree_foreach(room_tree, print_rooms, NULL);
 
-    SSL_CTX *ctx;
+    SSL_CTX *ctx = NULL;
     const SSL_METHOD *method = SSLv3_server_method();
 
     /* Initialize OpenSSL */
@@ -859,7 +860,8 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
                 SSL_set_fd(user->ssl, user->connfd);
-                if(SSL_accept(user->ssl) < 0){
+                int accept = SSL_accept(user->ssl);
+                if(accept < 0) {
                     perror("Accepting ssl error\n");
                     exit(1);
                 }
