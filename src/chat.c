@@ -24,6 +24,9 @@
 /* Secure socket layer headers */
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
+
 
 /* For nicer interaction, we use the GNU readline library. */
 #include <readline/readline.h>
@@ -131,6 +134,14 @@ void sigint_handler(int signum)
     close(sockfd);
     SSL_free(server_ssl);
     SSL_CTX_free(ssl_ctx);
+    RAND_cleanup();
+    ENGINE_cleanup();
+    CONF_modules_unload(1);
+    CONF_modules_free();
+    EVP_cleanup();
+    ERR_free_strings();
+    ERR_remove_state(0);
+    CRYPTO_cleanup_all_ex_data();
     rl_callback_handler_remove();
 
     fsync(STDOUT_FILENO);  
