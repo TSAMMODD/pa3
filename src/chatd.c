@@ -75,15 +75,9 @@ struct privatemessage {
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
-gboolean free_tree(gpointer key, gpointer value, gpointer data) {
-    GList* list = (GList*) data; 
-    list = g_list_append(list, value);
-    list = g_list_append(list, key);
-    return FALSE;
-}
-
 void sigint_handler(int signum) {
     /* list */
+    /*
     GList *l = userinfo;
     GList *next;
     while (l != NULL) {
@@ -93,34 +87,8 @@ void sigint_handler(int signum) {
        l = next;
     }
     g_list_free(userinfo);
+    */
     
-    /* tree */
-    GList* user_list_tmp = NULL;
-    g_tree_foreach(user_tree, free_tree, user_list_tmp);
-    
-    l = user_list_tmp;
-    while(l != NULL) {
-        next = l->next;
-        g_free(l->data);
-        user_list_tmp = g_list_delete_lin(user_list_tmp, l);
-        l = next;
-    }
-    g_list_free(user_list_tmp);
-
-    GList* room_list_tmp = NULL;
-    g_tree_foreach(room_tree, free_tree, user_list_tmp);
-    
-    l = room_list_tmp;
-    while(l != NULL) {
-        next = l->next;
-        g_free(l->data);
-        room_list_tmp = g_list_delete_lin(room_list_tmp, l);
-        l = next;
-    }
-    g_list_free(room_list_tmp);
-    
-    g_tree_destroy(user_tree);
-    g_tree_destroy(room_tree);
     exit(0);
 }
 
@@ -173,6 +141,33 @@ void print_users(gpointer data, gpointer user_data) {
     struct sockaddr_in *user = (struct sockaddr_in *) data;
     fprintf(stdout, "User: %d\n", user->sin_port);
     fflush(stdout);
+}
+
+void room_key_destroy(gpointer data) {
+    char* room_name = (char *) data;
+    g_free(room_name);
+}
+
+void room_value_destroy(gpointer data) {
+    struct room *room = (struct room *) data;
+    char* room_name = room->room_name;
+    GList* list = room->users;
+    while(list != NULL) {
+        GList* next = list->next;
+        g_free(list->data);
+        room->users = g_list_delete_link(room->users, list);
+        list = next;   
+    }
+    g_free(room_name);
+}
+
+void user_key_destroy(gpointer data) {
+    struct sockaddr_in *addr = (struct sockaddr_in *) data;
+    g_free(addr);
+}
+
+void user_value_destroy(gpointer data) {
+     
 }
 
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
@@ -726,7 +721,7 @@ int main(int argc, char **argv) {
     int listen_sock;
     struct sockaddr_in server;
     user_tree = g_tree_new(sockaddr_in_cmp);
-    room_tree = g_tree_new(strcmp);
+    room_tree = g_tree_new_full(strcmp, NULL, room_key_destroy, room_value_destroy);
 
     userinfo = NULL;
 
