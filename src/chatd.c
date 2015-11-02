@@ -31,12 +31,28 @@
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
 
-/*  */
+/* The GTree struct is an opaque data structure representing a balanced binary tree. 
+ * This GTree, user_tree, represents such tree and contains information about user 
+ * connections. Each node in the tree has a key and a value and maps the user's
+ * address and port (sockaddr_in) to a 'user' struct that contains necessary 
+ * information about the user and his/her connection. 
+ */
 static GTree* user_tree;
-/*  */
+
+/* This GTree, room_tree, contains information about all rooms and connected users.
+ * Each node in the tree has a key and a value and maps the room name 
+ * to a 'room' struct that contains information about the room name and
+ * a list of all users in the room. 
+ */
 static GTree* room_tree;
-/*  */
-GList *userinfo;
+
+/* The GList struct is used for each element in a doubly-linked list. 
+ * This GList, userinfo, contains as data in each node a 'userstruct' struct that
+ * only contains information about a user's username and password.
+ * This GList maintains information about every user that has ever logged in, and
+ * not only the present user connections, like the user_tree does.
+ */
+static GList *userinfo;
 /* Filepointer for log file */
 FILE *fp;
 SSL_CTX *ctx = NULL;
