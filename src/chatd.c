@@ -98,7 +98,9 @@ struct namecompare {
     struct sockaddr_in *curruser_key;
 };
 
-
+/* The 'privatemessage' struct contains information about a user's username
+ * and the message line to be sent as a private message to the user.
+ */
 struct privatemessage {
     char username[MAX_USER_LENGTH];
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
