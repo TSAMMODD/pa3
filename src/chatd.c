@@ -322,7 +322,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             }
-        } else if(strncmp(recvMessage, "/user", 5) == 0){
+        } else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
@@ -392,6 +392,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             //g_list_foreach(userinfo, print_userinfo, NULL);
             //fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             //fflush(stdout); 
+        } else if(strncmp(recvMessage, "/nick", 5) == 0) {
+            fprintf(stdout, "NICK\n");
+            fflush(stdout);
+
         } else {
             if(user->room_name == NULL) {
 
