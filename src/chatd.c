@@ -95,7 +95,8 @@ void sigint_handler(int signum) {
 
 /* This can be used to build instances of GTree that index on
    the address of a connection. */
-int sockaddr_in_cmp(const void *addr1, const void *addr2) {
+gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
+    UNUSED(user_data);
     const struct sockaddr_in *_addr1 = addr1;
     const struct sockaddr_in *_addr2 = addr2;
 
@@ -122,11 +123,16 @@ int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     const struct sockaddr_in *_addr1 = addr1;
     const struct sockaddr_in *_addr2 = addr2;
 
-    int retval = sockaddr_in_cmp(_addr1, _addr2);
+    int retval = sockaddr_in_cmp(_addr1, _addr2, NULL);
     
     if(retval == -1) return 1;
     if(retval == 1) return -1;
     else return 0;
+}
+
+gint _strcmp(const void *addr1, const void *addr2, gpointer user_data) {
+    UNUSED(user_data);
+    return strcmp(addr1, addr2);
 }
 
 int search_strcmp(const void *addr1, const void *addr2) {
@@ -250,9 +256,9 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;    
     struct namecompare *namecompare = (struct namecompare *) data;
 
-    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
+    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key, NULL) != 0 && strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         namecompare->found = 1;
-    } else if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
+    } else if(sockaddr_in_cmp(conn_key, namecompare->curruser_key, NULL) != 0 && strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
         namecompare->found = 1;
     }
 
@@ -275,8 +281,7 @@ gboolean list_roominfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/* A method that is used when we iterate through our user tree and
- * set */
+/**/
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -316,7 +321,7 @@ gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-gboolean send_message_to_user(gpointer data, gpointer user_data) {
+void send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in addr = *(struct sockaddr_in *) data;
     fprintf(stdout, "sockaddr_in.sin_port: %d\n", addr.sin_port);
     fflush(stdout);
@@ -336,23 +341,21 @@ gboolean send_message_to_user(gpointer data, gpointer user_data) {
         perror("Error writing to client.");
         exit(1);
     }
-
-    return FALSE;
 }
 
 void print_userinfo(gpointer data, gpointer user_data) {
     UNUSED(user_data);
     struct userstruct *user = (struct userstruct *) data;
-    fprintf(stdout, "Inside userinfo\n");
-        fflush(stdout);
+    //fprintf(stdout, "Inside userinfo\n");
+    //fflush(stdout);
 
     if(user == NULL){
-        fprintf(stdout, "NULL\n");
-        fflush(stdout);
+        //fprintf(stdout, "NULL\n");
+        //fflush(stdout);
         return;
     }
-    fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
-    fflush(stdout);
+    //fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
+    //fflush(stdout);
 }
 
 
@@ -732,7 +735,7 @@ int main(int argc, char **argv) {
     int listen_sock;
     struct sockaddr_in server;
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
-    room_tree = g_tree_new_full(strcmp, NULL, room_key_destroy, room_value_destroy);
+    room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
 
     userinfo = NULL;
 
@@ -845,7 +848,7 @@ int main(int argc, char **argv) {
             if(FD_ISSET(listen_sock, &rfds)){
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
                 struct user *user = g_new0(struct user, 1);
-                size_t len = sizeof(addr);
+                socklen_t len = sizeof(addr);
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
                 user->room_name = NULL;
                 memset(user->username, '\0', sizeof(user->username));
