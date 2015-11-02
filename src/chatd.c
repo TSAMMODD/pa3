@@ -334,11 +334,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error reading password");
                 exit(1);
             }
-                 
+
             recvMessage[size] = '\0';
             strncpy(password, recvMessage, sizeof(recvMessage));
-           
-             GList *l;
+
+            GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
                 struct userstruct *userBoo = (struct userstruct *) l->data;
                 char *username = (char *) userBoo->username;
@@ -358,7 +358,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         }
                         fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
                         fflush(stdout);
-                        /* Write disconnect info to file. */
                         fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "authenticated");
                         fflush(fp);
 
@@ -375,7 +374,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         return FALSE;
                     }
                     break;
-                 }
+                }
             }
 
             if(user->nick_name == NULL) {
@@ -395,6 +394,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/nick", 5) == 0) {
             fprintf(stdout, "NICK\n");
             fflush(stdout);
+
 
         } else {
             if(user->room_name == NULL) {
@@ -435,7 +435,7 @@ int main(int argc, char **argv) {
     room_tree = g_tree_new(strcmp);
 
     userinfo = NULL;
-    
+
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
