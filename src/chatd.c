@@ -201,19 +201,23 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;
     char *users = (char *) data;
     strcat(users, "User => User name: ");
-    strcat(users, "NULL");
-    strcat(users, " IP adress: ");
+    if(strlen(user->username) != 0) {     
+        strcat(users, user->username);
+    } else {
+        strcat(users, "No user name registered");
+    }
+    strcat(users, ". IP adress: ");
     strcat(users, inet_ntoa(conn_key->sin_addr));
-    strcat(users, " Port number: ");
+    strcat(users, ". Port number: ");
     char the_port[20];
     sprintf(the_port, "%d", conn_key->sin_port);
     strcat(users, the_port);
-    strcat(users, " Current room: ");
+    strcat(users, ". Current room: ");
     if(user->room_name == NULL) {
-        strcat(users, "NULL\n");
+        strcat(users, "No room.\n");
     } else {
         strcat(users, user->room_name);
-        strcat(users, "\n");
+        strcat(users, ".\n");
     }
     
     return FALSE;
@@ -230,7 +234,6 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
         g_tree_remove(user_tree, user_key);
-        g_free(user_key);
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -372,7 +375,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fflush(fp);
 
             g_tree_remove(user_tree, user_key);
-            g_free(user_key);
             if(user->room_name != NULL) {
                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
@@ -578,7 +580,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                                 exit(1);
                             }
                             g_tree_remove(user_tree, user_key);
-                            g_free(user_key);
                             if(user->room_name != NULL) {
                                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                                 previous_room->users = g_list_remove(previous_room->users, user_key);
