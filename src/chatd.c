@@ -45,8 +45,9 @@ static GTree* user_tree;
  * a list of all users in the room. 
  */
 static GTree* room_tree;
+
 /*  */
-GList *userinfo;
+static GList *userinfo;
 /* Filepointer for log file */
 FILE *fp;
 
