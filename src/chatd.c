@@ -275,7 +275,8 @@ gboolean list_roominfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/**/
+/* A method that is used when we iterate through our user tree and
+ * set */
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
