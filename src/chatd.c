@@ -244,7 +244,6 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     
     fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
-        g_tree_remove(user_tree, user_key);
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -258,6 +257,7 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
         close(user->connfd);
         user->connfd = -1;
         SSL_free(user->ssl);
+        g_tree_remove(user_tree, user_key);
     }
 
     return FALSE;
