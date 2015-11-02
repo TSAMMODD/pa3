@@ -392,19 +392,30 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             //fprintf(stdout, "User: %s, with password: %s, connected.\n", user->username, user->password);
             //fflush(stdout); 
         } else if(strncmp(recvMessage, "/nick", 5) == 0) {
-            fprintf(stdout, "NICK\n");
-            fflush(stdout);
             if(strlen(user->username) == 0) {
-                fprintf(stdout, "not authenticated\n");
-                fflush(stdout);
+                strcat(message, "You have to be authenticated to set your nickname. Use the command '/user 'username'' to register.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
             } else {
-                fprintf(stdout, "authenticated\n");
-                fflush(stdout);
+                char new_nick_name[MAX_LENGTH];
+                memset(new_nick_name, '\0', sizeof(new_nick_name));
+                strncpy(new_nick_name, recvMessage + 6, sizeof(recvMessage));
+                user->nick_name = new_nick_name;
+                strcat(message, "You have succesfully set your nick as ");
+                strcat(message, new_nick_name);
+                strcat(message, ".");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
+                }
             }
         } else {
             if(user->room_name == NULL) {
-
-                strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.\n");
+                strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
