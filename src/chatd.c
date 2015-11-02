@@ -50,6 +50,7 @@ struct user {
     char *room_name;
     char nick_name[MAX_USER_LENGTH];
     char username[MAX_USER_LENGTH];
+    char password[MAX_USER_LENGTH];
 };
 
 struct room {
@@ -345,6 +346,22 @@ void send_message_to_user(gpointer data, gpointer user_data) {
     }
 }
 
+void print_userinfo(gpointer data, gpointer user_data) {
+    UNUSED(user_data);
+    struct userstruct *user = (struct userstruct *) data;
+    //fprintf(stdout, "Inside userinfo\n");
+    //fflush(stdout);
+
+    if(user == NULL){
+        //fprintf(stdout, "NULL\n");
+        //fflush(stdout);
+        return;
+    }
+    //fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
+    //fflush(stdout);
+}
+
+
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
@@ -374,15 +391,14 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
             fflush(fp);
 
-            g_tree_remove(user_tree, user_key);
             if(user->room_name != NULL) {
                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
             }
             SSL_shutdown(user->ssl);
             close(user->connfd);
-            user->connfd = -1;
             SSL_free(user->ssl);
+            g_tree_remove(user_tree, user_key);
             return FALSE;
         }
         recvMessage[size] = '\0';
@@ -560,6 +576,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
+                        strncpy(user->password, password, MAX_USER_LENGTH);
                         strcpy(user->nick_name, user_name);
                         if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
                             perror("Error Writing to client\n");
@@ -619,6 +636,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
 
             strncpy(user->username, user_name, MAX_USER_LENGTH);
+            strncpy(user->password, password, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
             memset(userInformation->username, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->username, user_name);
