@@ -58,7 +58,6 @@ static GList *userinfo;
 
 /* Filepointer for log file */
 FILE *fp;
-/* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
 SSL_CTX *ctx = NULL;
 
 /* The 'user' struct contains information about a currently connected user. This 
@@ -111,7 +110,7 @@ struct privatemessage {
 
 /* A handler method that handles what should happen when a user terminates
  * the process, i.e. presses 'CTRL + c' (sends an INT signal). 
- */
+ * */
 void sigint_handler(int signum) {
     UNUSED(signum);
 
@@ -141,9 +140,8 @@ void sigint_handler(int signum) {
     exit(0);
 }
 
-/* A method that can be used to build instances of a GTree 
- * that indexes on the address of a connection. 
- */
+/* This can be used to build instances of GTree that index on
+   the address of a connection. */
 gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     UNUSED(user_data);
     const struct sockaddr_in *_addr1 = addr1;
@@ -164,14 +162,10 @@ gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     } else if (_addr1->sin_port > _addr2->sin_port) {
         return 1;
     }
-    /* Return 0 if the two addresses were equal. */
+
     return 0;
 }
 
-/* A method that is used when sending a message to every user in a room.
- * It has the purpose of comparing one user via a user's address 
- * to another during a g_tree_search.
- */
 int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     const struct sockaddr_in *_addr1 = addr1;
     const struct sockaddr_in *_addr2 = addr2;
@@ -183,28 +177,20 @@ int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     else return 0;
 }
 
-/* A method that has the same functionality as strcmp, but returns a gint
- * that is necessary to be able to call g_tree_new_full correctly.
- */
 gint _strcmp(const void *addr1, const void *addr2, gpointer user_data) {
     UNUSED(user_data);
     return strcmp(addr1, addr2);
 }
 
-/* A method that compares two strings together, in our case room names,
- * and returns the correct values in order for g_tree_search to work correctly.
- */
 int search_strcmp(const void *addr1, const void *addr2) {
     const char *_addr1 = addr1;
     const char *_addr2 = addr2;
     int ret = strcmp(_addr1, _addr2);
     if(ret < 0) return 1;
     else if(ret > 0) return -1; 
-    else return 0;
+    else  return 0;
 }
 
-/* A method that is used to print out a user's port. 
- */
 void print_users(gpointer data, gpointer user_data) {
     UNUSED(user_data);
     struct sockaddr_in *user = (struct sockaddr_in *) data;
