@@ -333,8 +333,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
         } else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
-            memset(user_name, '\0', sizeof(user_name);
-
+            memset(user_name, '\0', sizeof(user_name));
             //strncpy(user_name, recvMessage + 5, sizeof(recvMessage));
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
