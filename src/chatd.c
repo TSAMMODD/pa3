@@ -83,6 +83,7 @@ gboolean free_tree(gpointer key, gpointer value, gpointer data) {
 }
 
 void sigint_handler(int signum) {
+    UNUSED(signum);
     /* list */
     GList *l = userinfo;
     GList *next;
@@ -170,12 +171,17 @@ int search_strcmp(const void *addr1, const void *addr2) {
 }
 
 void print_users(gpointer data, gpointer user_data) {
+    UNUSED(user_data);
     struct sockaddr_in *user = (struct sockaddr_in *) data;
     fprintf(stdout, "User: %d\n", user->sin_port);
     fflush(stdout);
 }
 
+/* 
+ * 
+ */
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
+    UNUSED(data);
     char *room_name = (char *) key;
     struct room *room = (struct room *) value;
     fprintf(stdout, "Room: %s\n", room_name);
@@ -212,6 +218,7 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
 }
 
 gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    UNUSED(data);
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
 
@@ -336,6 +343,7 @@ gboolean send_message_to_user(gpointer data, gpointer user_data) {
 }
 
 void print_userinfo(gpointer data, gpointer user_data) {
+    UNUSED(user_data);
     struct userstruct *user = (struct userstruct *) data;
     fprintf(stdout, "Inside userinfo\n");
         fflush(stdout);
