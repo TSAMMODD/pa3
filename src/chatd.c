@@ -397,10 +397,13 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
            
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
 
-            if(size < 0){
+                       if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
+
+            
+
 
             recvMessage[size] = '\0';
 
@@ -412,8 +415,17 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char buf[sizeof "2011-10-08T07:07:09Z"];
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+            
+            if(user->loginTryTime == NULL){
+                time(&user->loginTryTime);
+            }else if(now - user->loginTryTime < 5){
+                if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
+                    perror("Error Writing to client\n");
+                    exit(1);
+                }
+                return FALSE;
+            }
 
-           
 
             GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
@@ -421,7 +433,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 char *username = (char *) userBoo->username;
                 char *pw = (char *) userBoo->password;
 
-                if(strcmp(username, user_name) == 0){ 
+                if(strcmp(username, user_name) == 0){
+                    time(&user->loginTryTime);
+
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
                         strncpy(user->password, password, MAX_USER_LENGTH);
@@ -454,6 +468,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                             user->connfd = -1;
                             SSL_free(user->ssl);
 
+                            fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                            fflush(stdout);
+                            fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                            fflush(fp);
                             fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
                             fflush(stdout);
                             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
@@ -718,6 +736,7 @@ int main(int argc, char **argv) {
                 }
                 time(&user->timeout);
                 user->loginTries = 0;
+                user->loginTryTime = NULL;
 
                 g_tree_insert(user_tree, addr, user);
 
