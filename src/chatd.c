@@ -196,6 +196,8 @@ int search_strcmp(const void *addr1, const void *addr2) {
     else return 0;
 }
 
+/* A method that is used to print out a user's port. 
+ */
 void print_users(gpointer data, gpointer user_data) {
     UNUSED(user_data);
     struct sockaddr_in *user = (struct sockaddr_in *) data;
