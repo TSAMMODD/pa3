@@ -27,18 +27,16 @@
 /* Macros */
 #define UNUSED(x) (void)(x)
 #define MAX_CONNECTIONS 5
-#define MAX_LENGTH 9999
+#define MAX_LENGTH 999
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
 
 /*  */
 static GTree* user_tree;
-
-/*  */
-GList *userinfo;
-
 /*  */
 static GTree* room_tree;
+/*  */
+GList *userinfo;
 /* Filepointer for log file */
 FILE *fp;
 
@@ -77,22 +75,52 @@ struct privatemessage {
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
-void free_func(void * data){
+gboolean free_tree(gpointer key, gpointer value, gpointer data) {
+    GList* list = (GList*) data; 
+    list = g_list_append(list, value);
+    list = g_list_append(list, key);
+    return FALSE;
 }
 
 void sigint_handler(int signum) {
+    /* list */
     GList *l = userinfo;
-    while (l != NULL)
-    {
-       GList *next = l->next;
+    GList *next;
+    while (l != NULL) {
+       next = l->next;
        free(l->data);
        userinfo = g_list_delete_link(userinfo, l); 
-              
        l = next;
     }
-    //free_func(user_tree);
-    fprintf(stdout, "SIGINT\n");
-    fflush(stdout);
+    g_list_free(userinfo);
+    
+    /* tree */
+    GList* user_list_tmp = NULL;
+    g_tree_foreach(user_tree, free_tree, user_list_tmp);
+    
+    l = user_list_tmp;
+    while(l != NULL) {
+        next = l->next;
+        g_free(l->data);
+        user_list_tmp = g_list_delete_lin(user_list_tmp, l);
+        l = next;
+    }
+    g_list_free(user_list_tmp);
+
+    GList* room_list_tmp = NULL;
+    g_tree_foreach(room_tree, free_tree, user_list_tmp);
+    
+    l = room_list_tmp;
+    while(l != NULL) {
+        next = l->next;
+        g_free(l->data);
+        room_list_tmp = g_list_delete_lin(room_list_tmp, l);
+        l = next;
+    }
+    g_list_free(room_list_tmp);
+    
+    g_tree_destroy(user_tree);
+    g_tree_destroy(room_tree);
     exit(0);
 }
 
@@ -193,6 +221,7 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
         g_tree_remove(user_tree, user_key);
+        g_free(user_key);
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -351,6 +380,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fflush(fp);
 
             g_tree_remove(user_tree, user_key);
+            g_free(user_key);
             if(user->room_name != NULL) {
                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
@@ -557,6 +587,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                                 exit(1);
                             }
                             g_tree_remove(user_tree, user_key);
+                            g_free(user_key);
                             if(user->room_name != NULL) {
                                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                                 previous_room->users = g_list_remove(previous_room->users, user_key);
