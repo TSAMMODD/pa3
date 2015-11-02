@@ -48,7 +48,7 @@ struct user {
     SSL *ssl;
     time_t timeout;
     char *room_name;
-    char *nick_name;
+    char nick_name[MAX_USER_LENGTH];
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
 };
@@ -160,17 +160,16 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;    
     struct namecompare *namecompare = (struct namecompare *) data;
 
-    if(user->username != NULL && strcmp(user->username, namecompare->name) == 0) {
+    if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         fprintf(stdout, "firstTRUE\n");
+        fprintf(stdout, "user->nickname: %s  -  namecomapre->name : %s \n", user->nick_name, namecompare->name);
         fflush(stdout);
         namecompare->found = 1;
-    } else if(user->nick_name != NULL && strcmp(user->nick_name, namecompare->name) == 0) {
+    } else if(strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
         fprintf(stdout, "secondTRUE\n");
         fprintf(stdout, "user->nickname: %s  -  namecomapre->name : %s \n", user->nick_name, namecompare->name);
         fflush(stdout);
         namecompare->found = 1;
-    } else {
-        namecompare->found = 0;
     }
 
     return FALSE;
@@ -420,8 +419,8 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             }
 
-            if(user->nick_name == NULL) {
-                user->nick_name = user_name;
+            if(strlen(user->nick_name) == 0) {
+                strcpy(user->nick_name, user_name);
             }
             strncpy(user->username, user_name, MAX_USER_LENGTH);
             strncpy(user->password, password, MAX_USER_LENGTH);
@@ -468,7 +467,8 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 fflush(stdout);
 
                 if(!namecompare.found) {
-                    user->nick_name = new_nick_name;
+                    memset(user->nick_name, '\0', MAX_USER_LENGTH); 
+                    strcat(user->nick_name, new_nick_name);
                     strcat(message, "You have succesfully set your nick as ");
                     strcat(message, new_nick_name);
                     strcat(message, ".");
@@ -486,7 +486,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         perror("Error writing to client");
                         exit(1);
                     }
-
                 }
             }
         } else {
@@ -499,14 +498,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             } else {
                 struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
-                char *_recvMessage;
-                if(user->nick_name != NULL) {
-                    _recvMessage = user->nick_name;
+                char _recvMessage[MAX_LENGTH];
+                memset(_recvMessage, '\0', MAX_LENGTH);
+                if(strlen(user->nick_name) != 0) {
+                    strcat(_recvMessage, user->nick_name);
                 } else {
                     char anonymous[MAX_LENGTH];
                     memset(anonymous, '\0', MAX_LENGTH);
                     strcat(anonymous, "Anonmymous");
-                    _recvMessage = anonymous;
+                    strcat(_recvMessage, anonymous);
                 }
                 strcat(_recvMessage, ": ");
                 strcat(_recvMessage, recvMessage);
@@ -639,9 +639,9 @@ int main(int argc, char **argv) {
                 struct user *user = g_new0(struct user, 1);
                 size_t len = sizeof(addr);
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
-                user->nick_name = NULL;
                 user->room_name = NULL;
                 memset(user->username, '\0', sizeof(user->username));
+                memset(user->nick_name, '\0', sizeof(user->username));
 
                 if(user->connfd < 0){
                     perror("Error accepting\n");
