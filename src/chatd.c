@@ -134,8 +134,8 @@ void sigint_handler(int signum) {
     exit(0);
 }
 
-/* A method that can be used to build instances of a GTree that indexes on
- * the address of a connection. 
+/* A method that can be used to build instances of a GTree 
+ * that indexes on the address of a connection. 
  */
 gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     UNUSED(user_data);
@@ -161,6 +161,10 @@ gint sockaddr_in_cmp(const void *addr1, const void *addr2, gpointer user_data) {
     return 0;
 }
 
+/* A method that is used when sending a message to every user in a room.
+ * It has the purpose of comparing one user via a user's address 
+ * to another during a g_tree_search.
+ */
 int search_sockaddr_in_cmp(const void *addr1, const void *addr2) {
     const struct sockaddr_in *_addr1 = addr1;
     const struct sockaddr_in *_addr2 = addr2;
