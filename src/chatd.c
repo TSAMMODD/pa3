@@ -39,6 +39,7 @@ static GTree* room_tree;
 GList *userinfo;
 /* Filepointer for log file */
 FILE *fp;
+SSL_CTX *ctx = NULL;
 
 /**/
 struct user {
@@ -86,8 +87,19 @@ void sigint_handler(int signum) {
        l = next;
     }
     g_list_free(userinfo);
+
+    /*
+    g_tree_remove(room_tree, "Room1"); 
+    g_tree_remove(room_tree, "Room2"); 
+    g_tree_remove(room_tree, "Room3"); 
+    g_tree_remove(room_tree, "Room4"); 
+    fprintf(stdout, "Lenght of room_tree: %d\n", g_tree_nnodes(room_tree));
+    sleep(5);
+    */
+    
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
+    SSL_CTX_free(ctx);
     
     exit(0);
 }
@@ -166,6 +178,7 @@ void room_value_destroy(gpointer data) {
         list = next;   
     }
     g_free(room_name);
+    g_free(room);
 }
 
 void user_key_destroy(gpointer data) {
@@ -175,6 +188,9 @@ void user_key_destroy(gpointer data) {
 
 void user_value_destroy(gpointer data) {
     struct user *user = (struct user *) data;
+    SSL_shutdown(user->ssl);
+    close(user->connfd);
+    SSL_free(user->ssl);
     g_free(user);     
 }
 
@@ -233,7 +249,6 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     
     fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
-        g_tree_remove(user_tree, user_key);
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -243,10 +258,7 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
         /* Write disconnect info to file. */
         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
         fflush(fp);
-        SSL_shutdown(user->ssl);
-        close(user->connfd);
-        user->connfd = -1;
-        SSL_free(user->ssl);
+        g_tree_remove(user_tree, user_key);
     }
 
     return FALSE;
@@ -394,9 +406,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
             }
-            SSL_shutdown(user->ssl);
-            close(user->connfd);
-            SSL_free(user->ssl);
             g_tree_remove(user_tree, user_key);
             return FALSE;
         }
@@ -600,10 +609,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                                 previous_room->users = g_list_remove(previous_room->users, user_key);
                             }
-                            SSL_shutdown(user->ssl);
-                            close(user->connfd);
-                            user->connfd = -1;
-                            SSL_free(user->ssl);
 
                             fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
                             fflush(stdout);
@@ -766,7 +771,7 @@ int main(int argc, char **argv) {
     
     //g_tree_foreach(room_tree, print_rooms, NULL);
 
-    SSL_CTX *ctx = NULL;
+    ctx = NULL;
     const SSL_METHOD *method = SSLv3_server_method();
 
     /* Initialize OpenSSL */
