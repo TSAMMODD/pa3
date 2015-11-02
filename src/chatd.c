@@ -204,11 +204,9 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;    
     struct namecompare *namecompare = (struct namecompare *) data;
 
-    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) == 0) {
-        namecompare = 0;
-    } else if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
+    if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         namecompare->found = 1;
-    } else if(strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
+    } else if(sockaddr_in_cmp(conn_key, namecompare->curruser_key) != 0 && strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
         namecompare->found = 1;
     }
 
