@@ -354,10 +354,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         memset(message, '\0', sizeof(message));
         int size = 0;
         if(strlen(user->username) == 0){
-            if(strncmp(recvMessage, "/user", 5) == 0){
-                //yay
-            }
-            else{
+            if(strncmp(recvMessage, "/user", 5) != 0){
                 if(SSL_write(user->ssl, "You have to log in or register with '/user <username>'", strlen("You have to log in or register with '/user <username>'")) < 0){
                     perror("Error Writing To Client");
                 }
@@ -439,14 +436,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
             strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
-           
+            
+
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
 
-                       if(size < 0){
+            if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
-    
+
             recvMessage[size] = '\0';
             if(strlen(user->username) != 0){
                 if(SSL_write(user->ssl, "You are already logged in.", strlen("You are already logged in.")) < 0) {
