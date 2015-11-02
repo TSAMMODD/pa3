@@ -346,7 +346,17 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         char message[MAX_LENGTH];
         memset(message, '\0', sizeof(message));
         int size = 0;
-
+        if(strlen(user->username) == 0){
+            if(strncmp(recvMessage, "/user", 5) == 0){
+                //yay
+            }
+            else{
+                if(SSL_write(user->ssl, "You have to log in or register with '/user <username>'", strlen("You have to log in or register with '/user <username>'")) < 0){
+                    perror("Error Writing To Client");
+                }
+                return FALSE;
+            }
+        }
         if(strncmp(recvMessage, "/who", 4) == 0) {
             g_tree_foreach(user_tree, list_userinfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
@@ -390,7 +400,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             if(the_room == NULL) {
                 strcat(message, "The room '");
                 strcat(message, room_name);
-                strcat(message, "' does not exist.\n");
+                strcat(message, "' does not exist.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
@@ -418,28 +428,42 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         } else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
-            strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
+            int i = 5;
+            while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
+            strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
            
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
 
-            if(size < 0){
+                       if(size < 0){
                 perror("Error reading password");
                 exit(1);
             }
-
+    
             recvMessage[size] = '\0';
-
-
-
+            if(strlen(user->username) != 0){
+                if(SSL_write(user->ssl, "You are already logged in.", strlen("You are already logged in.")) < 0) {
+                    perror("Error Writing to client\n");
+                    exit(1);
+                }
+                return FALSE;
+            }
             strncpy(password, recvMessage, sizeof(recvMessage));
             time_t now;
             time(&now);
             char buf[sizeof "2011-10-08T07:07:09Z"];
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-
-           
+            
+            if(user->loginTryTime == NULL){
+                time(&user->loginTryTime);
+            }else if(now - user->loginTryTime < 5){
+                if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
+                    perror("Error Writing to client\n");
+                    exit(1);
+                }
+                return FALSE;
+            }
 
             GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
@@ -447,7 +471,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 char *username = (char *) userBoo->username;
                 char *pw = (char *) userBoo->password;
 
-                if(strcmp(username, user_name) == 0){ 
+                if(strcmp(username, user_name) == 0){
+                    time(&user->loginTryTime);
+
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
                         strncpy(user->password, password, MAX_USER_LENGTH);
@@ -480,6 +506,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                             user->connfd = -1;
                             SSL_free(user->ssl);
 
+                            fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                            fflush(stdout);
+                            fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
+                            fflush(fp);
                             fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
                             fflush(stdout);
                             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
@@ -498,29 +528,29 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         return FALSE;
                     }
                     break;
+                }
             }
-        }
-        
-        if(strlen(user->nick_name) == 0) {
-            strcpy(user->nick_name, user_name);
-        }
 
-        strncpy(user->username, user_name, MAX_USER_LENGTH);
-        strncpy(user->password, password, MAX_USER_LENGTH);
-        struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
-        memset(userInformation->username, '\0', MAX_USER_LENGTH);
-        strcpy(userInformation->username, user_name);
-        memset(userInformation->password, '\0', MAX_USER_LENGTH);
-        strcpy(userInformation->password, password);
-        userinfo = g_list_append(userinfo, userInformation);
-        if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
-            perror("Error Writing to client\n");
-            exit(1);
-        }
-        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered.");
-        fflush(stdout);
-        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered");
-        fflush(fp);
+            if(strlen(user->nick_name) == 0) {
+                strcpy(user->nick_name, user_name);
+            }
+
+            strncpy(user->username, user_name, MAX_USER_LENGTH);
+            strncpy(user->password, password, MAX_USER_LENGTH);
+            struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
+            memset(userInformation->username, '\0', MAX_USER_LENGTH);
+            strcpy(userInformation->username, user_name);
+            memset(userInformation->password, '\0', MAX_USER_LENGTH);
+            strcpy(userInformation->password, password);
+            userinfo = g_list_append(userinfo, userInformation);
+            if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
+                perror("Error Writing to client\n");
+                exit(1);
+            }
+            fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered.");
+            fflush(stdout);
+            fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered");
+            fflush(fp);
 
         } else if(strncmp(recvMessage, "/nick", 5) == 0) {
             if(strlen(user->username) == 0) {
@@ -533,25 +563,24 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             } else {
                 char new_nick_name[MAX_LENGTH];
                 memset(new_nick_name, '\0', sizeof(new_nick_name));
-                strncpy(new_nick_name, recvMessage + 6, sizeof(recvMessage));
+                int i = 5;
+                while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
+                strncpy(new_nick_name, recvMessage + i, sizeof(recvMessage));
                 struct namecompare namecompare;
                 namecompare.name = new_nick_name;
                 namecompare.found = 0;
 
-                fprintf(stdout, "before foreach!\n");
-                fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
-                fflush(stdout);
                 g_tree_foreach(user_tree, check_user, &namecompare);
-                fprintf(stdout, "after foreach!\n");
-                fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
-                fflush(stdout);
 
                 if(!namecompare.found) {
                     memset(user->nick_name, '\0', MAX_USER_LENGTH); 
+                    if(strlen(new_nick_name) == 0) {
+                        strcat(new_nick_name, "Anonymous");
+                    }
                     strcat(user->nick_name, new_nick_name);
-                    strcat(message, "You have succesfully set your nick as ");
+                    strcat(message, "You have succesfully set your nick as '");
                     strcat(message, new_nick_name);
-                    strcat(message, ".");
+                    strcat(message, "'.");
                     size = SSL_write(user->ssl, message, strlen(message));
                     if(size < 0) {
                         perror("Error writing to client");
@@ -738,12 +767,16 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
                 
-                if(SSL_write(user->ssl, "Welcome", strlen("Welcome")) < 0){
+                char welcome_message[MAX_LENGTH];
+                memset(welcome_message, '\0', MAX_LENGTH);
+                strcat(welcome_message, "Welcome! - Please authenticate youself with the command '/user <username>' before you start using the chat server.");
+                if(SSL_write(user->ssl, welcome_message, strlen(welcome_message)) < 0){
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
                 time(&user->timeout);
                 user->loginTries = 0;
+                user->loginTryTime = NULL;
 
                 g_tree_insert(user_tree, addr, user);
 
