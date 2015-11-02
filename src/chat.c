@@ -465,6 +465,13 @@ int main(int argc, char **argv)
                 if(size == 0){
                     fprintf(stdout, "Server Closed the Connection! - Exiting\n");
                     fflush(stdout);
+                    SSL_shutdown(server_ssl);
+                    close(sockfd);
+                    SSL_free(server_ssl);
+                    SSL_CTX_free(ssl_ctx);
+                    rl_callback_handler_remove();
+
+                    fsync(STDOUT_FILENO);  
                     exit(0);
                 }
 
