@@ -76,7 +76,20 @@ struct privatemessage {
     char message[MAX_LENGTH];
 };
 
+void free_func(void * data){
+}
+
 void sigint_handler(int signum) {
+    GList *l = userinfo;
+    while (l != NULL)
+    {
+       GList *next = l->next;
+       free(l->data);
+       userinfo = g_list_delete_link(userinfo, l); 
+              
+       l = next;
+    }
+    //free_func(user_tree);
     fprintf(stdout, "SIGINT\n");
     fflush(stdout);
     exit(0);
