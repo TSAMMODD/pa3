@@ -29,6 +29,7 @@
 #define MAX_CONNECTIONS 5
 #define MAX_LENGTH 9999
 #define MAX_USER_LENGTH 48
+#define TIMEOUT_SECONDS 5
 
 /*  */
 static GTree* user_tree;
@@ -46,6 +47,8 @@ struct user {
     int connfd;
     SSL *ssl;
     time_t timeout;
+    time_t loginTryTime;
+    int loginTries;
     char *room_name;
     char *nick_name;
     char username[MAX_USER_LENGTH];
@@ -247,6 +250,33 @@ void print_userinfo(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
+gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *user_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;
+
+    time_t now;
+    time(&now);
+    
+    fflush(stdout);
+    if(now - user->timeout > TIMEOUT_SECONDS){
+        g_tree_remove(user_tree, user_key);
+        char buf[sizeof "2011-10-08T07:07:09Z"];
+        memset(buf, 0, sizeof(buf));
+        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+        /* Write disconnect info to screen. */
+        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(stdout);
+        /* Write disconnect info to file. */
+        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
+        fflush(fp);
+        SSL_shutdown(user->ssl);
+        close(user->connfd);
+        user->connfd = -1;
+        SSL_free(user->ssl);
+    }
+
+    return FALSE;
+}
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
@@ -262,6 +292,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             perror("ssl_read fail!\n");
             exit(1);
         }
+        time(&user->timeout);
         if(size == 0){
             /* Creating the timestamp. */
             time_t now;
@@ -578,6 +609,7 @@ int main(int argc, char **argv) {
 
         FD_ZERO(&rfds);
 
+        g_tree_foreach(user_tree, check_timeout, NULL);
         g_tree_foreach(user_tree, is_greater_fd, &highestFD);
         g_tree_foreach(user_tree, fd_set_nodes, &rfds);
         
@@ -621,7 +653,7 @@ int main(int argc, char **argv) {
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
-
+                time(&user->timeout);
                 g_tree_insert(user_tree, addr, user);
 
                 /* Creating the timestamp. */
