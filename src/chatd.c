@@ -53,11 +53,14 @@ static GTree* room_tree;
  * not only the present user connections, like the user_tree does.
  */
 static GList *userinfo;
+
 /* Filepointer for log file */
 FILE *fp;
 SSL_CTX *ctx = NULL;
 
-/**/
+/* The 'user' struct contains information about a currently connected user. This 
+ * information describes when he should timeout, how many times he has tried to 
+ * log in, his connection file descriptor, SSL pointer and basic user credentials.*/
 struct user {
     int connfd;
     SSL *ssl;
@@ -70,23 +73,34 @@ struct user {
     char password[MAX_USER_LENGTH];
 };
 
+/* The 'room' struct contains information about a room in our chat server.
+ * This information is the room name and a list of users in this room.
+ */
 struct room {
     char* room_name;
     GList *users;
 };
 
+/* The 'userstruct' struct contains information about a user's basic credentials,
+ * i.e. his username and password.
+ */
 struct userstruct {
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
 };
 
+/* The 'namecompare' struct is used when we traverse through our user_tree
+ * to find a certain user.
+ */
 struct namecompare {
     char *name;
     int found;
     struct sockaddr_in *curruser_key;
 };
 
-
+/* The 'privatemessage' struct contains information about a user's username
+ * and the message line to be sent as a private message to the user.
+ */
 struct privatemessage {
     char username[MAX_USER_LENGTH];
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
