@@ -381,7 +381,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char password[MAX_USER_LENGTH];
             strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
-            user->loginTries = user->loginTries + 1;
+           
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
 
             if(size < 0){
@@ -400,7 +400,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
 
-            if(user->loginTries > 3){
+            if(user->loginTries > 2){
                 if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
@@ -443,6 +443,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         return FALSE;
                     }
                  else {
+                    user->loginTries = user->loginTries + 1;
                     if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
                         perror("Error Writing to client\n");
                         exit(1);
