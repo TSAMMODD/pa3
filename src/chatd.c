@@ -163,10 +163,16 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct namecompare *namecompare = (struct namecompare *) data;
 
     if(user->username != NULL && strcmp(user->username, namecompare->name) == 0) {
+        fprintf(stdout, "firstTRUE\n");
+        fflush(stdout);
         namecompare->found = 1;
-    }
-    if(user->nick_name != NULL && strcmp(user->nick_name, namecompare->name) == 0) {
+    } else if(user->nick_name != NULL && strcmp(user->nick_name, namecompare->name) == 0) {
+        fprintf(stdout, "secondTRUE\n");
+        fprintf(stdout, "user->nickname: %s  -  namecomapre->name : %s \n", user->nick_name, namecompare->name);
+        fflush(stdout);
         namecompare->found = 1;
+    } else {
+        namecompare->found = 0;
     }
 
     return FALSE;
@@ -479,19 +485,34 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 namecompare.name = new_nick_name;
                 namecompare.found = 0;
 
+                fprintf(stdout, "before foreach!\n");
+                fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
+                fflush(stdout);
                 g_tree_foreach(user_tree, check_user, &namecompare);
                 fprintf(stdout, "after foreach!\n");
                 fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
                 fflush(stdout);
 
-                user->nick_name = new_nick_name;
-                strcat(message, "You have succesfully set your nick as ");
-                strcat(message, new_nick_name);
-                strcat(message, ".");
-                size = SSL_write(user->ssl, message, strlen(message));
-                if(size < 0) {
-                    perror("Error writing to client");
-                    exit(1);
+                if(!namecompare.found) {
+                    user->nick_name = new_nick_name;
+                    strcat(message, "You have succesfully set your nick as ");
+                    strcat(message, new_nick_name);
+                    strcat(message, ".");
+                    size = SSL_write(user->ssl, message, strlen(message));
+                    if(size < 0) {
+                        perror("Error writing to client");
+                        exit(1);
+                    }
+                } else {
+                    strcat(message, "You cannot choose the nick '");
+                    strcat(message, new_nick_name);
+                    strcat(message, "' because some user either has it as a username or nick.");
+                    size = SSL_write(user->ssl, message, strlen(message));
+                    if(size < 0) {
+                        perror("Error writing to client");
+                        exit(1);
+                    }
+
                 }
             }
         } else {
