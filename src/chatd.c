@@ -56,9 +56,15 @@ struct room {
     char* room_name;
     GList *users;
 };
+
 struct userstruct {
     char username[MAX_USER_LENGTH];
     char password[MAX_USER_LENGTH];
+};
+
+struct namecompare {
+    char *name;
+    int found;
 };
 
 /* This can be used to build instances of GTree that index on
@@ -112,7 +118,6 @@ void print_users(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
-
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     char *room_name = (char *) key;
     struct room *room = (struct room *) value;
@@ -146,6 +151,21 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
         strcat(users, "\n");
     }
     
+    return FALSE;
+}
+
+gboolean check_user(gpointer key, gpointer value, gpointer data) {
+    struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
+    struct user *user = (struct user *) value;    
+    struct namecompare *namecompare = (struct namecompare *) data;
+
+    if(user->username != NULL && strcmp(user->username, namecompare->name) == 0) {
+        namecompare->found = 1;
+    }
+    if(user->nick_name != NULL && strcmp(user->nick_name, namecompare->name) == 0) {
+        namecompare->found = 1;
+    }
+
     return FALSE;
 }
 
@@ -413,6 +433,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 char new_nick_name[MAX_LENGTH];
                 memset(new_nick_name, '\0', sizeof(new_nick_name));
                 strncpy(new_nick_name, recvMessage + 6, sizeof(recvMessage));
+                struct namecompare *namecompare;
+                namecompare->name = new_nick_name;
+                namecompare->found = 0;
+
+
                 user->nick_name = new_nick_name;
                 strcat(message, "You have succesfully set your nick as ");
                 strcat(message, new_nick_name);
