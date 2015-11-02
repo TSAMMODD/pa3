@@ -148,7 +148,7 @@ void readline_callback(char *line)
     }
     if (strncmp("/game", line, 5) == 0) {
         /* Skip whitespace */
-        int i = 4;
+        int i = 5;
         while (line[i] != '\0' && isspace(line[i])) { i++; }
         if (line[i] == '\0') {
             write(STDOUT_FILENO, "Usage: /game username\n", 29);

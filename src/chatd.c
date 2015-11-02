@@ -535,25 +535,24 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             } else {
                 char new_nick_name[MAX_LENGTH];
                 memset(new_nick_name, '\0', sizeof(new_nick_name));
-                strncpy(new_nick_name, recvMessage + 6, sizeof(recvMessage));
+                int i = 5;
+                while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
+                strncpy(new_nick_name, recvMessage + i, sizeof(recvMessage));
                 struct namecompare namecompare;
                 namecompare.name = new_nick_name;
                 namecompare.found = 0;
 
-                fprintf(stdout, "before foreach!\n");
-                fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
-                fflush(stdout);
                 g_tree_foreach(user_tree, check_user, &namecompare);
-                fprintf(stdout, "after foreach!\n");
-                fprintf(stdout, "namecompare->name: %s - namecompare->found: %d\n", namecompare.name, namecompare.found); 
-                fflush(stdout);
 
                 if(!namecompare.found) {
                     memset(user->nick_name, '\0', MAX_USER_LENGTH); 
+                    if(strlen(new_nick_name) == 0) {
+                        strcat(new_nick_name, "Anonymous");
+                    }
                     strcat(user->nick_name, new_nick_name);
-                    strcat(message, "You have succesfully set your nick as ");
+                    strcat(message, "You have succesfully set your nick as '");
                     strcat(message, new_nick_name);
-                    strcat(message, ".");
+                    strcat(message, "'.");
                     size = SSL_write(user->ssl, message, strlen(message));
                     if(size < 0) {
                         perror("Error writing to client");
