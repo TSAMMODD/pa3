@@ -161,14 +161,8 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct namecompare *namecompare = (struct namecompare *) data;
 
     if(strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
-        fprintf(stdout, "firstTRUE\n");
-        fprintf(stdout, "user->nickname: %s  -  namecomapre->name : %s \n", user->nick_name, namecompare->name);
-        fflush(stdout);
         namecompare->found = 1;
     } else if(strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
-        fprintf(stdout, "secondTRUE\n");
-        fprintf(stdout, "user->nickname: %s  -  namecomapre->name : %s \n", user->nick_name, namecompare->name);
-        fflush(stdout);
         namecompare->found = 1;
     }
 
