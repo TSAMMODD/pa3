@@ -3,11 +3,11 @@
 ## Question 5
 ### Where are the passwords stored?
 
-Answer: 
+Answer: The passwords are stored in the file *passwords.ini* which is stored in our *src* folder. The only time the passwords are in memory is when the hashed string is read from SSL_read and when it is rehashed. 
 
 ### Where are the salt strings stored?
 
-Answer: 
+Answer:  
 
 ### Why do you send the plain text password/hashed password?
 
