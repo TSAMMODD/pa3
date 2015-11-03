@@ -586,6 +586,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
             recvMessage[size] = '\0';
     
+            /* A person can not log in or sign up as an already logged-in user. */
             if(namecompare.found) {
                 strcat(message, "You cannot register/login as the user '");
                 strcat(message, user_name);
@@ -612,6 +613,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
             if(strlen(user->username) != 0){
                 char errorMsg[MAX_LENGTH];
+                memset(errorMsg, '\0', sizeof(errorMsg));
                 strcat(errorMsg, "You are already logged in as '");
                 strcat(errorMsg, user->username);
                 strcat(errorMsg, "'.");
