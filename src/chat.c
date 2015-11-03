@@ -35,6 +35,7 @@
 #define UNUSED(x) (void)(x)
 #define MAX_LENGTH 9999
 #define HASH_ITERATION 5000
+#define PEM_FILE "/home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/CAfile.pem"
 
 /* This variable is 1 while the client is active and becomes 0 after
    a quit command to terminate the client and to clean up the
@@ -342,7 +343,7 @@ int main(int argc, char **argv)
     server_ssl = SSL_new(ssl_ctx);
 
     /* Loading CA from the CA file and verify the certificate from the server */
-    if(SSL_CTX_load_verify_locations(ssl_ctx, argv[2], NULL) <= 0) {
+    if(SSL_CTX_load_verify_locations(ssl_ctx, PEM_FILE, NULL) <= 0) {
         perror("Error loading CA.\n");
         exit(0);
     }

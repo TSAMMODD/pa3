@@ -34,6 +34,8 @@
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
 #define HASH_ITERATION 5000
+#define CERTIFICATE "/home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.crt"
+#define KEY "/home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.key"
 
 /* The GTree struct is an opaque data structure representing a balanced binary tree. 
  * This GTree, user_tree, represents such tree and contains information about user 
@@ -926,12 +928,12 @@ int main(int argc, char **argv) {
     }
 
     /* Loading certificate from the certificate file */
-    if(SSL_CTX_use_certificate_file(ctx, argv[2], SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_certificate_file(ctx, CERTIFICATE, SSL_FILETYPE_PEM) <= 0) {
         perror("Error loading certificate.\n");
         exit(1);
     }
     /* Loading private key from the private key file */
-    if(SSL_CTX_use_PrivateKey_file(ctx, argv[3], SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_PrivateKey_file(ctx, KEY, SSL_FILETYPE_PEM) <= 0) {
         perror("Error loading private key.\n");
         exit(1);
     }
