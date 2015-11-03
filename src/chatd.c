@@ -257,8 +257,8 @@ void user_value_destroy(gpointer data) {
     g_free(user);     
 }
 
-/* 
- * 
+/* A function used when iterating through all rooms via g_tree_foreach.
+ * This function handles printing out a room and its users.
  */
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     UNUSED(data);
