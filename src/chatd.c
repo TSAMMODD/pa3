@@ -302,6 +302,10 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
+/* A function that is used when we iterate through all users and checks
+ * whether or not they should timeout, i.e. be kicked out of the chat
+ * server due to inactivity.
+ */
 gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     UNUSED(data);
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
@@ -310,7 +314,6 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     time_t now;
     time(&now);
     
-    fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
