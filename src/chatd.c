@@ -188,15 +188,6 @@ int search_strcmp(const void *addr1, const void *addr2) {
     else return 0;
 }
 
-/* A method that is used to print out a user's port. 
- */
-void print_users(gpointer data, gpointer user_data) {
-    UNUSED(user_data);
-    struct sockaddr_in *user = (struct sockaddr_in *) data;
-    fprintf(stdout, "User: %d\n", user->sin_port);
-    fflush(stdout);
-}
-
 /* A function to free the memory allocated for the key used when 
  * removing the entry from the room_tree GTree.
  */
@@ -240,19 +231,6 @@ void user_value_destroy(gpointer data) {
     close(user->connfd);
     SSL_free(user->ssl);
     g_free(user);     
-}
-
-/* A function used when iterating through all rooms via g_tree_foreach.
- * This function handles printing out a room and its users.
- */
-gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
-    UNUSED(data);
-    char *room_name = (char *) key;
-    struct room *room = (struct room *) value;
-    fprintf(stdout, "Room: %s\n", room_name);
-    fflush(stdout);
-    g_list_foreach(room->users, print_users, NULL);
-    return FALSE;
 }
 
 /* A method that is used when we receive the command '/who' and has
@@ -869,12 +847,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 } 
 
 int main(int argc, char **argv) {
-    int l = 0;
-    for(; l < argc; l++) {
-        fprintf(stdout, "l: %d  - %s \n", l, argv[l]);
-        fflush(stdout);
-    }
-
     /* Welcoming message. */ 
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
