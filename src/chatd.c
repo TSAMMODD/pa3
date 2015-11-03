@@ -52,11 +52,14 @@ static GTree* room_tree;
 
 /* Filepointer for log file */
 FILE *fp;
-/*  */
+
+/* The file that stores user's password. */
 FILE *password_fp;
+
 /* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
 SSL_CTX *ctx = NULL;
 
+/* The salt string that we use to prepend to the client's password before we re-hash it. */
 const char *SALT = "BRANDONSTARK";
 
 /* The 'user' struct contains information about a currently connected user. This 
@@ -103,9 +106,11 @@ struct privatemessage {
  */
 void sigint_handler(int signum) {
     UNUSED(signum);
+    /* Cleanup when the server has shut down. */
+    /* Tree cleanup. */
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
-
+    /* Other cleanup include SSL. */
     SSL_CTX_free(ctx);
     RAND_cleanup();
     ENGINE_cleanup();
@@ -258,6 +263,7 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     struct user *user = (struct user *) value;
     char *users = (char *) data;
     strcat(users, "User => User name: ");
+    /* Check if user has a user name. */
     if(strlen(user->username) != 0) {     
         strcat(users, user->username);
     } else {
@@ -270,6 +276,7 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     sprintf(the_port, "%d", conn_key->sin_port);
     strcat(users, the_port);
     strcat(users, ". Current room: ");
+    /* Check if user is currently in a room. */
     if(user->room_name == NULL) {
         strcat(users, "No room.\n");
     } else {
@@ -288,10 +295,10 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     UNUSED(data);
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
-
     time_t now;
     time(&now);
     
+    /* User has timed out. */
     if(now - user->timeout > TIMEOUT_SECONDS){
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
@@ -299,9 +306,10 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
         /* Write disconnect info to screen. */
         fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
         fflush(stdout);
-        /* Write disconnect info to file. */
+        /* Write disconnect info to log file. */
         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "timed out.");
         fflush(fp);
+        /* Remove the user from the tree. */
         g_tree_remove(user_tree, user_key);
     }
 
@@ -346,9 +354,7 @@ gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
     fd_set *rfds = (fd_set *) data;
-    if(conn->connfd != -1) {
-        FD_SET(conn->connfd, rfds);
-    }
+    FD_SET(conn->connfd, rfds);
 
     return FALSE;
 } 
@@ -393,14 +399,10 @@ gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
  */
 void send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in addr = *(struct sockaddr_in *) data;
-    fprintf(stdout, "sockaddr_in.sin_port: %d\n", addr.sin_port);
-    fflush(stdout);
     char *recvMessage = (char *) user_data;
     int size = 0;
+    /* Searching for the user in our tree. */
     struct user *user = g_tree_search(user_tree, search_sockaddr_in_cmp, &addr);
-
-    fprintf(stdout, "user->connfd: %d\n", user->connfd);
-    fflush(stdout);
 
     if(user == NULL) {
         perror("Error finding user.\n");
@@ -429,9 +431,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         memset(recvMessage, '\0', strlen(recvMessage));
         size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
         if(size < 0 ){
-            perror("ssl_read fail!\n");
+            perror("Error reading with SSL.\n");
             exit(1);
         }
+        /* If we get a message of size equal to 0 than we know that the user have disconnect. */
         if(size == 0){
             /* Creating the timestamp. */
             time_t now;
@@ -442,14 +445,16 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             /* Write disconnect info to screen. */
             fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
             fflush(stdout);
-            /* Write disconnect info to file. */
+            /* Write disconnect info to log file. */
             fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, "disconnected");
             fflush(fp);
 
+            /* If the user was in some room than we remove him from the room's users list. */
             if(user->room_name != NULL) {
                 struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 previous_room->users = g_list_remove(previous_room->users, user_key);
             }
+            /* Remove the user from the user's tree. */
             g_tree_remove(user_tree, user_key);
             return FALSE;
         }
@@ -481,7 +486,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
             char message[MAX_LENGTH];
-            //messageLine is of the form '<username>[PM]: <message>'
+            /* messageLine is of the form '<username>[PM]: <message>' */
             char messageLine[MAX_USER_LENGTH + MAX_LENGTH + sizeof("[PM]: ")];
             memset(user_name, '\0', sizeof(user_name));
             memset(message, '\0', sizeof(message));
@@ -510,7 +515,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(pm->message, '\0', MAX_LENGTH);
             strcpy(pm->message, messageLine);
 
-            //Find the correct user and send him/her the private message.
+            /* Find the correct user and send him/her the private message. */
             g_tree_foreach(user_tree, send_private_message, pm);
         }
         /* If the user types in '/list' we list the names of all available public chat rooms. */ 
@@ -529,7 +534,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
+            /* Searching for the room in our room's tree. */
             struct room *the_room = g_tree_search(room_tree, search_strcmp, room_name);
+            /* If we do not find the room we print a error message. */
             if(the_room == NULL) {
                 strcat(message, "The room '");
                 strcat(message, room_name);
@@ -540,14 +547,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             } else {
+                /* If the user was already in a room than we have to remove the user from his previous room's users list. */
                 if(user->room_name != NULL) {
                     struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                     previous_room->users = g_list_remove(previous_room->users, user_key);
                 }
                     
+                /* Setting the data. */
                 user->room_name = the_room->room_name;
                 the_room->users = g_list_append(the_room->users, user_key); 
-                g_tree_foreach(room_tree, print_rooms, NULL);
 
                 strcat(message, "You have succesfully joined '");
                 strcat(message, room_name);
@@ -567,16 +575,21 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
+            memset(user_name, '\0', MAX_USER_LENGTH);
+            memset(password, '\0', MAX_USER_LENGTH);
             int i = 5;
+            /* Escape whitespace. */
             while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
             strncpy(user_name, recvMessage + i, sizeof(recvMessage));
             memset(recvMessage, '\0', strlen(recvMessage));
 
+            /* We use a struct to check if there is existing user with the same username. */
             struct namecompare namecompare;
             namecompare.name = user_name;
             namecompare.found = 0;
             namecompare.curruser_key = user_key;
             
+            /* Searching for a user with the same username. If we found him than namecompare.found is set to 1. */
             g_tree_foreach(user_tree, check_user, &namecompare);
 
             size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
@@ -600,6 +613,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
+            /* If the username is empty than we print out error message. */
             if(strlen(user_name) == 0) {
                 strcat(message, "The username cannot be empty.");
                 size = SSL_write(user->ssl, message, strlen(message));
@@ -610,7 +624,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 memset(recvMessage, '\0', strlen(recvMessage));
                 return FALSE;
             }
-
+            
+            /* If the user that is trying to login/register has a username than that means that 
+             * the user is already logged in. */
             if(strlen(user->username) != 0){
                 char errorMsg[MAX_LENGTH];
                 memset(errorMsg, '\0', sizeof(errorMsg));
@@ -625,6 +641,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
+            /* Getting the password from the user to the 'password' array. */
             strncpy(password, recvMessage, sizeof(recvMessage)); 
             memset(recvMessage, '\0', strlen(recvMessage));
     
@@ -634,10 +651,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf2, '\0', MAX_LENGTH);
             memset(the_password, '\0', MAX_LENGTH);
 
+            /* Adding our salt string to the password. */
             strncpy(the_password, SALT, strlen(SALT));
             strncat(the_password, password, strlen(password));
+            
+            /* The hash logic. */
             SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
-
             i = 0;
             for(; i < HASH_ITERATION; i++) {
                 SHA256((unsigned char *)buf1, strlen(buf1), (unsigned char *) buf2);
@@ -646,9 +665,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 memset(buf2, '\0', strlen(buf2));
             }    
 
-            memset(password, '\0', strlen(password));
-            memset(the_password, '\0', strlen(the_password));
+            /* Memsetting the memory for security reasons. */
+            memset(password, '\0', sizeof(password));
+            memset(the_password, '\0', sizeof(the_password));
             strncpy(password, buf1, strlen(buf1));
+            memset(buf1, '\0', sizeof(buf1));
 
             time_t now;
             time(&now);
@@ -656,9 +677,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(buf, 0, sizeof(buf));
             strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
             
+            /* Resetting the login try time if the user have not failed to login. */
             if(user->loginTryTime == 0){
                 time(&user->loginTryTime);
-            } else if(now - user->loginTryTime < 5){
+            }
+            /* The user have to wait between login tries. */
+            else if(now - user->loginTryTime < 5){
                 if(SSL_write(user->ssl, "Try again in a few seconds.", strlen("Try again in a few seconds.")) < 0) {
                     perror("Error Writing to client\n");
                     exit(1);
@@ -666,6 +690,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
+            /* Load the user's passwords to keyfile from our passwords file. */
             GKeyFile *keyfile = g_key_file_new();
             g_key_file_load_from_file(keyfile, "src/passwords.ini", G_KEY_FILE_NONE, NULL);
             gchar *get_password64 = g_key_file_get_string(keyfile, "passwords", user_name, NULL);
