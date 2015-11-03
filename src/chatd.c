@@ -212,6 +212,9 @@ void print_users(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
+/* A method used to destroy a room. It frees from memory a room,
+ * found with room name, which is the key in the room tree.
+ */
 void room_key_destroy(gpointer data) {
     char* room_name = (char *) data;
     g_free(room_name);
