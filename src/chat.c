@@ -5,7 +5,6 @@
  * from multiple sockets at the same time. Read the documentation for
  * select on how to do this (Hint: Iterate with FD_ISSET()).
  */
-
 #include <assert.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -42,6 +41,7 @@
    connection. */
 static int active = 1;
 
+/* The salt string that we use to prepend to the password before we hash it. */
 const char *SALT = "TYRIONLANNISTER";
 
 /* To read a password without echoing it to the console.
@@ -83,12 +83,14 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
         passwd[strlen(passwd) - 1] = '\0';
     }
 
+    /* Memsetting the memory for security reasons. */
     char buf1[MAX_LENGTH], buf2[MAX_LENGTH];
     memset(buf1, '\0', MAX_LENGTH);
     memset(buf2, '\0', MAX_LENGTH);
     char the_password[MAX_LENGTH];
     strncpy(the_password, SALT, strlen(SALT));
     strncat(the_password, passwd, strlen(passwd));
+    /* The hash logic. */
     SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
     
     int i = 0;
@@ -99,6 +101,7 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
         memset(buf2, '\0', strlen(buf2));
     }    
 
+    /* Memsetting the memory for security reasons. */
     memset(passwd, '\0', strlen(passwd));
     memset(passwd, '\0', strlen(the_password));
     strncpy(passwd, buf1, strlen(buf1));
@@ -115,9 +118,7 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
  * select (if needed), while the encrypted communication should use
  * server_ssl and the SSL API of OpenSSL.
  */
-//static int server_fd;
 static int sockfd;
-
 static SSL *server_ssl;
 static SSL_CTX *ssl_ctx;
 
@@ -143,6 +144,8 @@ void sigint_handler(int signum) {
     /* We should not use printf inside of signal handlers, this is not
      * considered safe. We may, however, use write() and fsync(). */
     write(STDOUT_FILENO, "Terminated.\n", 12);
+
+    /* Client's cleanup. */
     free(prompt);
     rl_callback_handler_remove();
     SSL_shutdown(server_ssl);
@@ -195,8 +198,8 @@ void readline_callback(char *line) {
         return;
     }
     if (strncmp("/join", line, 5) == 0) {
-        int i = 5;
         /* Skip whitespace */
+        int i = 5;
         while (line[i] != '\0' && isspace(line[i])) { i++; }
         if (line[i] == '\0') {
             write(STDOUT_FILENO, "Usage: /join chatroom\n", 22);
@@ -256,8 +259,8 @@ void readline_callback(char *line) {
         return;
     }
     if (strncmp("/user", line, 5) == 0) {
-        int i = 5;
         /* Skip whitespace */
+        int i = 5;
         while (line[i] != '\0' && isspace(line[i])) { i++; }
         if (line[i] == '\0') {
             write(STDOUT_FILENO, "Usage: /user username\n", 22);
@@ -299,8 +302,11 @@ void readline_callback(char *line) {
 
 int main(int argc, char **argv)
 {
+    /* Welcome message in client. */
     fprintf(stdout, "CLIENT INITIALIZING -- %d COOL 4 SCH00L!\n", argc);
     fflush(stdout);
+    /* Setting sigint handler. */
+    signal(SIGINT, sigint_handler);
     /* Initialize OpenSSL */
     /* Load encryption & hash algorithms for SSL */
     SSL_library_init();
@@ -311,8 +317,6 @@ int main(int argc, char **argv)
     const SSL_METHOD *method;
     char *str;    
     char recvMessage[8196];
-
-    signal(SIGINT, sigint_handler);
 
     method = SSLv3_client_method();
 
@@ -333,20 +337,6 @@ int main(int argc, char **argv)
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 
     SSL_CTX_set_verify_depth(ssl_ctx, 1);
-    /* TODO:
-     * We may want to use a certificate file if we self sign the
-     * certificates using SSL_use_certificate_file(). If available,
-     * a private key can be loaded using
-     * SSL_CTX_use_PrivateKey_file(). The use of private keys with
-     * a server side key data base can be used to authenticate the
-     * client.
-     */
-
-
-    /* Create and set up a listening socket. The sockets you
-     * create here can be used in select calls, so do not forget
-     * them.
-     */
     
     /* Create a sockaddress for server and client */
     struct sockaddr_in server;// , client;
@@ -409,17 +399,6 @@ int main(int argc, char **argv)
     /* Before we can accept messages, we have to listen to the port. */
     listen(sockfd, 1);
 
-
-    /* Now we can create BIOs and use them instead of the socket.
-     * The BIO is responsible for maintaining the state of the
-     * encrypted connection and the actual encryption. Reads and
-     * writes to sock_fd will insert unencrypted data into the
-     * stream, which even may crash the server.
-     */
-
-    /* Set up secure connection to the chatd server. */
-
-
     /* Read characters from the keyboard while waiting for input.
     */
     prompt = strdup("> ");
@@ -427,7 +406,6 @@ int main(int argc, char **argv)
     while (active) {
         fd_set rfds;
         struct timeval timeout;
-        //struct timeval timeout2;
 
         FD_ZERO(&rfds);
         FD_SET(STDIN_FILENO, &rfds);
@@ -452,7 +430,6 @@ int main(int argc, char **argv)
             break;
         }
         if (r == 0) {
-            //write(STDOUT_FILENO, "No message?\n>", 12);
             fsync(STDOUT_FILENO);
             /* Whenever you print out a message, call this
                to reprint the current input line. */
