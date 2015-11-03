@@ -496,7 +496,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
         }
-        /* If the user types in '/who' we list the names of all users available on the system */
+        /* If the user types in '/who' we list the names of all users available on the system. */
         if(strncmp(recvMessage, "/who", 4) == 0) {
             g_tree_foreach(user_tree, list_userinfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
@@ -505,7 +505,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 exit(1);
             }
         } 
-        /* If the user types in '/say' he sends another user a private message */
+        /* If the user types in '/say' he sends another user a private message. */
         else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
             char message[MAX_LENGTH];
@@ -540,8 +540,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
             //Find the correct user and send him/her the private message.
             g_tree_foreach(user_tree, send_private_message, pm);
-
-        } else if(strncmp(recvMessage, "/list", 5) == 0) {
+        }
+        /* If the user types in '/list' we list the names of all available public chat rooms. */ 
+        else if(strncmp(recvMessage, "/list", 5) == 0) {
             g_tree_foreach(room_tree, list_roominfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
             if(size < 0) {
