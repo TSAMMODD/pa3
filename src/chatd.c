@@ -98,6 +98,12 @@ struct privatemessage {
     char message[MAX_LENGTH + MAX_USER_LENGTH + sizeof("[PM]: ")];
 };
 
+struct gamerequest {
+    char username[MAX_USER_LENGTH];
+    char message[MAX_LENGTH];
+    int accept;
+};
+
 /* A handler method that handles what should happen when a user terminates
  * the process, i.e. presses 'CTRL + c' (sends an INT signal). 
  */
@@ -388,6 +394,26 @@ gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
+gboolean send_game_request(gpointer key, gpointer value, gpointer data) {
+    UNUSED(key);
+    struct user *conn = (struct user *) value;
+    struct gamerequest *gr = (struct gamerequest *) data;
+    int size = 0;
+    fprintf(stdout, "conn->u in sgr %s\n", conn->username);
+    fprintf(stdout, "gr->u in sgr %s\n", gr->username);
+    fflush(stdout);
+    if(strcmp(conn->username, gr->username) == 0) {
+        fprintf(stdout, "HERE in sgr\n");
+        fflush(stdout);
+        size = SSL_write(conn->ssl, gr->message, strlen(gr->message));
+        if(size < 0) {
+            perror("Error writing to client.");
+            exit(1);
+        }
+    }
+    return FALSE;
+}
+
 /* A function used when iterating through all users in a room.
  * It handles sending a message to all users in the room.
  */
@@ -512,6 +538,28 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
             //Find the correct user and send him/her the private message.
             g_tree_foreach(user_tree, send_private_message, pm);
+        }
+        /*
+         */
+        else if (strncmp(recvMessage, "/game", 5) == 0) { 
+            char user_name[MAX_USER_LENGTH];
+            char message[MAX_LENGTH];
+            memset(user_name, '\0', sizeof(user_name));
+            memset(message, '\0', sizeof(message));
+            strncpy(user_name, recvMessage + 6, sizeof(recvMessage));
+            strcpy(message, user->username);
+            strcat(message, " has requested to play a dice game with you. Press 'y' to accept and 'n' to decline.\n");
+            fprintf(stdout, "%s \n", user_name);
+            fprintf(stdout, "%s \n", message);
+            fflush(stdout);
+            struct gamerequest *gr = (struct gamerequest *) malloc(sizeof(struct gamerequest));
+            memset(gr->username, '\0', MAX_USER_LENGTH);
+            strcpy(gr->username, user_name);
+            memset(gr->message, '\0', MAX_LENGTH);
+            strcpy(gr->message, message);
+            gr->accept = 0;
+
+            g_tree_foreach(user_tree, send_game_request, gr);
         }
         /* If the user types in '/list' we list the names of all available public chat rooms. */ 
         else if(strncmp(recvMessage, "/list", 5) == 0) {
