@@ -25,6 +25,7 @@
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
+#include <openssl/sha.h>
 
 /* Macros */
 #define UNUSED(x) (void)(x)
@@ -32,6 +33,7 @@
 #define MAX_LENGTH 999
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
+#define HASH_ITERATION 5000
 
 /* The GTree struct is an opaque data structure representing a balanced binary tree. 
  * This GTree, user_tree, represents such tree and contains information about user 
@@ -54,6 +56,8 @@ FILE *fp;
 FILE *password_fp;
 /* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
 SSL_CTX *ctx = NULL;
+
+const char *SALT = "BRANDONSTARK";
 
 /* The 'user' struct contains information about a currently connected user. This 
  * information describes when he should timeout, how many times he has tried to 
@@ -621,8 +625,37 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(password, recvMessage, sizeof(recvMessage)); 
             memset(recvMessage, '\0', strlen(recvMessage));
     
-            fprintf(stdout, "The password: %s\n", password);        
+            fprintf(stdout, "The password before hash: %s\n", password);        
             fflush(stdout);
+
+            // TODO HASH!
+
+            char buf1[MAX_LENGTH], buf2[MAX_LENGTH];
+            char the_password[MAX_LENGTH];
+            memset(buf1, '\0', MAX_LENGTH);
+            memset(buf2, '\0', MAX_LENGTH);
+            memset(the_password, '\0', MAX_LENGTH);
+
+            strncpy(the_password, SALT, strlen(SALT));
+            strncat(the_password, password, strlen(password));
+            fprintf(stdout, "the_password: %s\n", the_password);
+            SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
+
+            i = 0;
+            for(; i < HASH_ITERATION; i++) {
+                SHA256((unsigned char *)buf1, strlen(buf1), (unsigned char *) buf2);
+                memset(buf1, '\0', strlen(buf1));
+                strncpy(buf1, buf2, strlen(buf2));
+                memset(buf2, '\0', strlen(buf2));
+            }    
+
+            memset(password, '\0', strlen(password));
+            memset(the_password, '\0', strlen(the_password));
+            strncpy(password, buf1, strlen(buf1));
+
+            fprintf(stdout, "\n\nThe password after hash: %s\n", password);        
+            fflush(stdout);
+
 
             time_t now;
             time(&now);
@@ -649,7 +682,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             fflush(stdout);
 
             if(passwd != NULL) {
-                if(strcmp(passwd, password) == 0) {
+                if(strcmp((const char *) passwd, password) == 0) {
                     strncpy(user->username, user_name, MAX_USER_LENGTH);
                     strcpy(user->nick_name, user_name);
                     if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
@@ -708,7 +741,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(user->username, user_name, strlen(user_name));
 
             password_fp = fopen("src/passwords.ini", "w");
-            gchar *passwd64 = g_base64_encode(password, strlen(password));
+            gchar *passwd64 = g_base64_encode((const guchar *) password, strlen(password));
             g_key_file_set_string(keyfile, "passwords", user_name, passwd64);
             gsize length;
             gchar *keyfile_string = g_key_file_to_data(keyfile, &length, NULL);
