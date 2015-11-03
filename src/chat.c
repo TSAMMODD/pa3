@@ -56,8 +56,7 @@ const char *SALT = "TYRIONLANNISTER";
  * operating system and C library). To restore echoing,
  * type 'reset' into the sell and press enter.
  */
-void getpasswd(const char *prompt, char *passwd, size_t size)
-{
+void getpasswd(const char *prompt, char *passwd, size_t size) {
     struct termios old_flags, new_flags;
 
     /* Clear out the buffer content. */
@@ -85,11 +84,12 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
     }
 
     char buf1[MAX_LENGTH], buf2[MAX_LENGTH];
+    memset(buf1, '\0', MAX_LENGTH);
+    memset(buf2, '\0', MAX_LENGTH);
     char the_password[MAX_LENGTH];
     strncpy(the_password, SALT, strlen(SALT));
     strncat(the_password, passwd, strlen(passwd));
-    fprintf(stdout, "the_password: %s\n", the_password);
-    SHA256((unsigned char *) passwd, strlen(passwd), (unsigned char *)buf1);
+    SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
     
     int i = 0;
     for(; i < HASH_ITERATION; i++) {
@@ -100,10 +100,8 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
     }    
 
     memset(passwd, '\0', strlen(passwd));
+    memset(passwd, '\0', strlen(the_password));
     strncpy(passwd, buf1, strlen(buf1));
-
-    fprintf(stdout, "Client side password: %s\n", passwd);
-    fflush(stdout);
 
     /* Restore the terminal */
     if (tcsetattr(fileno(stdin), TCSANOW, &old_flags) != 0) {
