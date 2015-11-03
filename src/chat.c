@@ -89,7 +89,6 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
     char the_password[MAX_LENGTH];
     strncpy(the_password, SALT, strlen(SALT));
     strncat(the_password, passwd, strlen(passwd));
-    fprintf(stdout, "the_password: %s\n", the_password);
     SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
     
     int i = 0;
@@ -103,9 +102,6 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
     memset(passwd, '\0', strlen(passwd));
     memset(passwd, '\0', strlen(the_password));
     strncpy(passwd, buf1, strlen(buf1));
-
-    fprintf(stdout, "Client side password: %s\n", passwd);
-    fflush(stdout);
 
     /* Restore the terminal */
     if (tcsetattr(fileno(stdin), TCSANOW, &old_flags) != 0) {

@@ -625,11 +625,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             strncpy(password, recvMessage, sizeof(recvMessage)); 
             memset(recvMessage, '\0', strlen(recvMessage));
     
-            fprintf(stdout, "The password before hash: %s\n", password);        
-            fflush(stdout);
-
-            // TODO HASH!
-
             char buf1[MAX_LENGTH], buf2[MAX_LENGTH];
             char the_password[MAX_LENGTH];
             memset(buf1, '\0', MAX_LENGTH);
@@ -638,7 +633,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
             strncpy(the_password, SALT, strlen(SALT));
             strncat(the_password, password, strlen(password));
-            fprintf(stdout, "the_password: %s\n", the_password);
             SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
 
             i = 0;
@@ -652,10 +646,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(password, '\0', strlen(password));
             memset(the_password, '\0', strlen(the_password));
             strncpy(password, buf1, strlen(buf1));
-
-            fprintf(stdout, "\n\nThe password after hash: %s\n", password);        
-            fflush(stdout);
-
 
             time_t now;
             time(&now);
@@ -676,12 +666,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             GKeyFile *keyfile = g_key_file_new();
             g_key_file_load_from_file(keyfile, "src/passwords.ini", G_KEY_FILE_NONE, NULL);
             gchar *get_password64 = g_key_file_get_string(keyfile, "passwords", user_name, NULL);
-            gsize plength;
-            guchar *passwd = g_base64_decode(get_password64, &plength);
-            fprintf(stdout, "decoded pass: %s\n", passwd);
-            fflush(stdout);
 
-            if(passwd != NULL) {
+            if(get_password64 != NULL) {
+                gsize plength;
+                guchar *passwd = g_base64_decode(get_password64, &plength);
+
                 if(strcmp((const char *) passwd, password) == 0) {
                     strncpy(user->username, user_name, MAX_USER_LENGTH);
                     strcpy(user->nick_name, user_name);
@@ -746,8 +735,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             gsize length;
             gchar *keyfile_string = g_key_file_to_data(keyfile, &length, NULL);
             fprintf(password_fp, "%s", keyfile_string);
-            fprintf(stdout, "keyfile_string %s\n", keyfile_string);
-            fflush(stdout);
             g_free(keyfile_string);
             g_free(passwd64);
             g_key_file_free(keyfile);
