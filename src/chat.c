@@ -26,13 +26,14 @@
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
-
+#include <openssl/sha.h>
 
 /* For nicer interaction, we use the GNU readline library. */
 #include <readline/readline.h>
 #include <readline/history.h>
 
 /* MACROS */
+#define UNUSED(x) (void)(x)
 #define MAX_LENGTH 9999
 
 /* This variable is 1 while the client is active and becomes 0 after
@@ -80,17 +81,29 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
         passwd[strlen(passwd) - 1] = '\0';
     }
 
+    char buf1[9999], buf2[9999];
+    SHA256(passwd, strlen(passwd), buf1);
+    
+    int i = 0;
+    for(; i < 5000; i++) {
+        SHA256(buf1, strlen(buf1), buf2);
+        memset(buf1, '\0', strlen(buf1));
+        strncpy(buf1, buf2, strlen(buf2));
+        memset(buf2, '\0', strlen(buf2));
+    }    
+
+    memset(passwd, '\0', strlen(passwd));
+    strncpy(passwd, buf1, strlen(buf1));
+
+    fprintf(stdout, "Client side password: %s\n", passwd);
+    fflush(stdout);
+
     /* Restore the terminal */
     if (tcsetattr(fileno(stdin), TCSANOW, &old_flags) != 0) {
         perror("tcsetattr");
         exit(EXIT_FAILURE);
     }
 }
-
-
-
-
-
 
 /* The next two variables are used to access the encrypted stream to
  * the server. The socket file descriptor server_fd is provided for
@@ -123,8 +136,8 @@ static char *prompt;
    active to 0 to get out of the loop below. Also note that the select
    call below may return with -1 and errno set to EINTR. Do not exit
    select with this error. */
-void sigint_handler(int signum)
-{
+void sigint_handler(int signum) {
+    UNUSED(signum);
     active = 0;
 
     /* We should not use printf inside of signal handlers, this is not
@@ -153,8 +166,7 @@ void sigint_handler(int signum)
    gets called to handle the entered line. Implement the code to
    handle the user requests in this function. The client handles the
    server messages in the loop in main(). */
-void readline_callback(char *line)
-{
+void readline_callback(char *line) {
     char buffer[256];
     if (NULL == line) {
         rl_callback_handler_remove();
@@ -321,7 +333,6 @@ int main(int argc, char **argv)
         perror("Error loading CA.\n");
         exit(1);
     }
-
 
     server_ssl = SSL_new(ssl_ctx);
 
