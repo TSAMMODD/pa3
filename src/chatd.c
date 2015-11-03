@@ -77,7 +77,6 @@ struct user {
     char *room_name;
     char nick_name[MAX_USER_LENGTH];
     char username[MAX_USER_LENGTH];
-    char password[MAX_USER_LENGTH];
 };
 
 /* The 'room' struct contains information about a room in our chat server.
@@ -131,6 +130,7 @@ void sigint_handler(int signum) {
     g_list_free(userinfo);
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
+    g_key_file_free(keyfile);
 
     SSL_CTX_free(ctx);
     RAND_cleanup();
@@ -621,11 +621,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
-            strncpy(password, recvMessage, sizeof(recvMessage));
-        
+            strncpy(password, recvMessage, sizeof(recvMessage)); 
+            memset(recvMessage, '\0', strlen(recvMessage));
+    
             fprintf(stdout, "The password: %s\n", password);        
             fflush(stdout);
-    
+
             time_t now;
             time(&now);
             char buf[sizeof "2011-10-08T07:07:09Z"];
@@ -653,7 +654,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 
                     if(strcmp(pw, password) == 0){
                         strncpy(user->username, user_name, MAX_USER_LENGTH);
-                        strncpy(user->password, password, MAX_USER_LENGTH);
                         strcpy(user->nick_name, user_name);
                         if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
                             perror("Error Writing to client\n");
@@ -709,12 +709,21 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
 
             strncpy(user->username, user_name, MAX_USER_LENGTH);
-            strncpy(user->password, password, MAX_USER_LENGTH);
             struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
             memset(userInformation->username, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->username, user_name);
             memset(userInformation->password, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->password, password);
+
+            gchar *passwd64 = g_base64_encode(password, strlen(password));
+            g_key_file_set_string(keyfile, "passwords", user_name, passwd64);
+            gsize length;
+            gchar *keyfile_string = g_key_file_to_data(keyfile, &length, NULL);
+            fprintf(stdout, "keyfile_string %s\n", keyfile_string);
+            fflush(stdout);
+            g_free(keyfile_string);
+            g_free(passwd64);
+
             userinfo = g_list_append(userinfo, userInformation);
             if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
                 perror("Error Writing to client\n");
@@ -810,7 +819,6 @@ int main(int argc, char **argv) {
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
     keyfile = g_key_file_new();
-
     userinfo = NULL;
 
     /* Creating rooms. */
@@ -838,12 +846,9 @@ int main(int argc, char **argv) {
     g_tree_insert(room_tree, room_name_2, room_2);
     g_tree_insert(room_tree, room_name_3, room_3);
     g_tree_insert(room_tree, room_name_4, room_4);
-    
-    //g_tree_foreach(room_tree, print_rooms, NULL);
 
     ctx = NULL;
     const SSL_METHOD *method = SSLv3_server_method();
-
     /* Initialize OpenSSL */
     /* Load encryption & hash algorithms for SSL */
     SSL_library_init();
@@ -852,7 +857,7 @@ int main(int argc, char **argv) {
 
     ctx = SSL_CTX_new(method);    
 
-    if(!ctx){
+    if(!ctx) {
         perror("Error newing ctx\n");
         exit(1);
     }
