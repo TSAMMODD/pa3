@@ -308,8 +308,8 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
  
-/* A function that is used when creating a new user or changing a nickname.
- * The function checks if the new name (username or nickname) already exists. 
+/* A function that is used when creating a new user.
+ * The function checks if the new name (username) already exists. 
  */
 gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
