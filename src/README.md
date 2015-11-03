@@ -7,7 +7,7 @@ Answer:
 
 2. Where are the salt strings stored?
 
-...Answer: 
+⋅⋅⋅Answer: 
 
 3. Why do you send the plain text password/hashed password?
 
