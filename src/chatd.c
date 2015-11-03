@@ -504,14 +504,19 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error writing to client");
                 exit(1);
             }
-        } else if(strncmp(recvMessage, "/say", 4) == 0) {
+        } 
+        /* If the user types in '/say' he sends another user a private message */
+        else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
             char message[MAX_LENGTH];
+            //messageLine is of the form '<username>[PM]: <message>'
             char messageLine[MAX_USER_LENGTH + MAX_LENGTH + sizeof("[PM]: ")];
             memset(user_name, '\0', sizeof(user_name));
             memset(message, '\0', sizeof(message));
             memset(messageLine, '\0', sizeof(messageLine));
             
+            /* The purpose of the next few lines are to parse the string received after
+             * '/say' into the username and message. */
             char str[MAX_LENGTH + MAX_USER_LENGTH];
             memset(str, '\0', sizeof(str));
             char *ptr;
@@ -533,6 +538,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(pm->message, '\0', MAX_LENGTH);
             strcpy(pm->message, messageLine);
 
+            //Find the correct user and send him/her the private message.
             g_tree_foreach(user_tree, send_private_message, pm);
 
         } else if(strncmp(recvMessage, "/list", 5) == 0) {
