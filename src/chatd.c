@@ -257,8 +257,8 @@ void user_value_destroy(gpointer data) {
     g_free(user);     
 }
 
-/* 
- * 
+/* A function used when iterating through all rooms via g_tree_foreach.
+ * This function handles printing out a room and its users.
  */
 gboolean print_rooms(gpointer key, gpointer value, gpointer data) {
     UNUSED(data);
@@ -302,6 +302,10 @@ gboolean list_userinfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
+/* A function that is used when we iterate through all users and checks
+ * whether or not they should timeout, i.e. be kicked out of the chat
+ * server due to inactivity.
+ */
 gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     UNUSED(data);
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
@@ -310,7 +314,6 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     time_t now;
     time(&now);
     
-    fflush(stdout);
     if(now - user->timeout > TIMEOUT_SECONDS){
         char buf[sizeof "2011-10-08T07:07:09Z"];
         memset(buf, 0, sizeof(buf));
@@ -327,7 +330,9 @@ gboolean check_timeout(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
  
-
+/* A function that is used when creating a new user or changing a nickname.
+ * The function checks if the new name (username or nickname) already exists. 
+ */
 gboolean check_user(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *conn_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;    
@@ -358,7 +363,9 @@ gboolean list_roominfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/**/
+/* A function that is used when we iterate through the user_tree. 
+ * The function sets each user's connection file descriptor. 
+ */
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -370,7 +377,10 @@ gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
-/**/
+/* A function that is used when we iterate through the user_tree.
+ * The function has the purpose of comparing users' connection file
+ * descriptors in order to find the highest one. 
+ */
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -382,6 +392,10 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
+/* A function used to send some user a private message. It is called each time
+ * when we iterate through our user_tree and if the receiving user matches 
+ * a user in the user_tree we send him/her the private message.
+ */
 gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -419,22 +433,6 @@ void send_message_to_user(gpointer data, gpointer user_data) {
         exit(1);
     }
 }
-
-void print_userinfo(gpointer data, gpointer user_data) {
-    UNUSED(user_data);
-    struct userstruct *user = (struct userstruct *) data;
-    //fprintf(stdout, "Inside userinfo\n");
-    //fflush(stdout);
-
-    if(user == NULL){
-        //fprintf(stdout, "NULL\n");
-        //fflush(stdout);
-        return;
-    }
-    //fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
-    //fflush(stdout);
-}
-
 
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
