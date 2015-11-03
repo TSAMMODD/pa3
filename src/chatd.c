@@ -363,7 +363,9 @@ gboolean list_roominfo(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/**/
+/* A function that is used when we iterate through the user_tree. 
+ * The function sets each user's connection file descriptor. 
+ */
 gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
@@ -375,7 +377,10 @@ gboolean fd_set_nodes(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
-/**/
+/* A function that is used when we iterate through the user_tree.
+ * The function has the purpose of comparing users' connection file
+ * descriptors in order to find the highest one. 
+ */
 gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
