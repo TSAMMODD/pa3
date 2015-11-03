@@ -29,12 +29,11 @@
 
 /* Macros */
 #define UNUSED(x) (void)(x)
-#define MAX_CONNECTIONS 5
+#define MAX_CONNECTIONS 30
 #define MAX_LENGTH 999
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
 #define HASH_ITERATION 5000
-#define MAX_CONNECTIONS 30
 
 /* The GTree struct is an opaque data structure representing a balanced binary tree. 
  * This GTree, user_tree, represents such tree and contains information about user 

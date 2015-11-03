@@ -121,11 +121,6 @@ static int sockfd;
 static SSL *server_ssl;
 static SSL_CTX *ssl_ctx;
 
-/* This variable shall point to the name of the user. The initial value
-   is NULL. Set this variable to the username once the user managed to be
-   authenticated. */
-//static char *user;
-
 /* This variable shall point to the name of the chatroom. The initial
    value is NULL (not member of a chat room). Set this variable whenever
    the user changed the chat room successfully. */
@@ -213,7 +208,6 @@ void readline_callback(char *line) {
         chatroom = strdup(&(line[i]));
 
         /* Process and send this information to the server. */
-
         if(SSL_write(server_ssl, line, strlen(line)) < 0 ){
             perror("Error Writing /join to server\n");
             exit(1);
@@ -253,8 +247,6 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        //char *receiver = strndup(&(line[i]), j - i - 1);
-        //char *message = strndup(&(line[j]), j - i - 1);
 
         /* Send private message to receiver. */
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
@@ -273,17 +265,10 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        //char *new_user = strdup(&(line[i]));
-        //strcat(new_user, ": ");
+
         char passwd[48];
         getpasswd("Password: ", passwd, 48);
 
-        /* Process and send this information to the server. */
-
-        /* Maybe update the prompt. */
-        //free(prompt);
-        //prompt = new_user; /* What should the new prompt look like? */
-        //rl_set_prompt(prompt);
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
             perror("Error writing /user to server\n");
             exit(1);
@@ -323,13 +308,9 @@ int main(int argc, char **argv)
     SSL_load_error_strings();
    
     X509 *server_cert;
-    //EVP_PKEY *pkey;
-    //short int s_sport = argv[2];
-    //const char  *server_ip = "127.0.0.1";
     const SSL_METHOD *method;
     char *str;    
     char recvMessage[8196];
-    //char sendMessage[128];
 
     signal(SIGINT, sigint_handler);
 
@@ -379,10 +360,8 @@ int main(int argc, char **argv)
     server.sin_family = AF_INET;
     /* Network functions need arguments in network byte order instead of 
        host byte order. The macros htonl, htons convert the values */
-    //server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_port = htons(atoi(argv[2]));
-    //bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
 
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
@@ -409,26 +388,16 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    //fprintf(stdout, "Turing would never use %s\n", SSL_get_cipher(server_ssl));
-    //fflush(stdout);
 
     server_cert = SSL_get_peer_certificate(server_ssl);
 
     if(server_cert != NULL){
-        /*
-        fprintf(stdout, "Server Certificate:\n");
-        fflush(stdout);
-        */
         str = X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
 
         if(str == NULL){
             perror("X509 subject name error\n");
             exit(1); 
         }
-        /*
-        fprintf(stdout, "Subject: %s\n", str);
-        fflush(stdout);
-        */
         free(str);
         X509_free(server_cert);
     }
