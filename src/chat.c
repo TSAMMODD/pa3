@@ -35,11 +35,14 @@
 /* MACROS */
 #define UNUSED(x) (void)(x)
 #define MAX_LENGTH 9999
+#define HASH_ITERATION 5000
 
 /* This variable is 1 while the client is active and becomes 0 after
    a quit command to terminate the client and to clean up the
    connection. */
 static int active = 1;
+
+const char *SALT = "TYRIONLANNISTER";
 
 /* To read a password without echoing it to the console.
  *
@@ -81,12 +84,16 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
         passwd[strlen(passwd) - 1] = '\0';
     }
 
-    char buf1[9999], buf2[9999];
-    SHA256(passwd, strlen(passwd), buf1);
+    char buf1[MAX_LENGTH], buf2[MAX_LENGTH];
+    char the_password[MAX_LENGTH];
+    strncpy(the_password, SALT, strlen(SALT));
+    strncat(the_password, passwd, strlen(passwd));
+    fprintf(stdout, "the_password: %s\n", the_password);
+    SHA256((unsigned char *) passwd, strlen(passwd), (unsigned char *)buf1);
     
     int i = 0;
-    for(; i < 5000; i++) {
-        SHA256(buf1, strlen(buf1), buf2);
+    for(; i < HASH_ITERATION; i++) {
+        SHA256((unsigned char *)buf1, strlen(buf1), (unsigned char *) buf2);
         memset(buf1, '\0', strlen(buf1));
         strncpy(buf1, buf2, strlen(buf2));
         memset(buf2, '\0', strlen(buf2));
@@ -110,7 +117,7 @@ void getpasswd(const char *prompt, char *passwd, size_t size)
  * select (if needed), while the encrypted communication should use
  * server_ssl and the SSL API of OpenSSL.
  */
-static int server_fd;
+//static int server_fd;
 static int sockfd;
 
 static SSL *server_ssl;
@@ -119,7 +126,7 @@ static SSL_CTX *ssl_ctx;
 /* This variable shall point to the name of the user. The initial value
    is NULL. Set this variable to the username once the user managed to be
    authenticated. */
-static char *user;
+//static char *user;
 
 /* This variable shall point to the name of the chatroom. The initial
    value is NULL (not member of a chat room). Set this variable whenever
@@ -205,7 +212,8 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        char *chatroom = strdup(&(line[i]));
+
+        chatroom = strdup(&(line[i]));
 
         /* Process and send this information to the server. */
 
@@ -248,8 +256,8 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        char *receiver = strndup(&(line[i]), j - i - 1);
-        char *message = strndup(&(line[j]), j - i - 1);
+        //char *receiver = strndup(&(line[i]), j - i - 1);
+        //char *message = strndup(&(line[j]), j - i - 1);
 
         /* Send private message to receiver. */
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
@@ -268,7 +276,7 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        char *new_user = strdup(&(line[i]));
+        //char *new_user = strdup(&(line[i]));
         //strcat(new_user, ": ");
         char passwd[48];
         getpasswd("Password: ", passwd, 48);
@@ -309,6 +317,8 @@ void readline_callback(char *line) {
 
 int main(int argc, char **argv)
 {
+    fprintf(stdout, "CLIENT INITIALIZING -- %d COOL 4 SCH00L!\n", argc);
+    fflush(stdout);
     /* Initialize OpenSSL */
     /* Load encryption & hash algorithms for SSL */
     SSL_library_init();
@@ -316,13 +326,13 @@ int main(int argc, char **argv)
     SSL_load_error_strings();
    
     X509 *server_cert;
-    EVP_PKEY *pkey;
-    short int s_sport = argv[2];
-    const char  *server_ip = "127.0.0.1";
-    SSL_METHOD *method;
+    //EVP_PKEY *pkey;
+    //short int s_sport = argv[2];
+    //const char  *server_ip = "127.0.0.1";
+    const SSL_METHOD *method;
     char *str;    
     char recvMessage[8196];
-    char sendMessage[128];
+    //char sendMessage[128];
 
     signal(SIGINT, sigint_handler);
 
@@ -361,7 +371,7 @@ int main(int argc, char **argv)
      */
     
     /* Create a sockaddress for server and client */
-    struct sockaddr_in server, client;
+    struct sockaddr_in server;// , client;
     /* Create and bind a TCP socket */
     if((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         perror("Could not create socket.\n");
@@ -377,13 +387,6 @@ int main(int argc, char **argv)
     server.sin_port = htons(atoi(argv[2]));
     //bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
 
-    int i = 0;
-    /*
-    for(; i < argc; i++) {
-        fprintf(stdout, "i: %d - %s\n", i, argv[i]);
-        fflush(stdout);
-    }
-    */
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
         exit(1);
@@ -458,7 +461,7 @@ int main(int argc, char **argv)
     while (active) {
         fd_set rfds;
         struct timeval timeout;
-        struct timeval timeout2;
+        //struct timeval timeout2;
 
         FD_ZERO(&rfds);
         FD_SET(STDIN_FILENO, &rfds);
