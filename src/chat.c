@@ -130,6 +130,8 @@ void sigint_handler(int signum)
     /* We should not use printf inside of signal handlers, this is not
      * considered safe. We may, however, use write() and fsync(). */
     write(STDOUT_FILENO, "Terminated.\n", 12);
+    free(prompt);
+    rl_callback_handler_remove();
     SSL_shutdown(server_ssl);
     close(sockfd);
     SSL_free(server_ssl);
@@ -142,7 +144,6 @@ void sigint_handler(int signum)
     ERR_free_strings();
     ERR_remove_state(0);
     CRYPTO_cleanup_all_ex_data();
-    rl_callback_handler_remove();
 
     fsync(STDOUT_FILENO);  
     exit(0);
@@ -505,10 +506,6 @@ int main(int argc, char **argv)
                 rl_redisplay(); 
             }
         }
-                
-        /* Handle messages from the server here! */
-
-
     }
     /* replace by code to shutdown the connection and exit
        the program. */

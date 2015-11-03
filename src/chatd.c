@@ -620,6 +620,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
 
             strncpy(password, recvMessage, sizeof(recvMessage));
+        
+            fprintf(stdout, "The password: %s\n", password);        
+            fflush(stdout);
+    
             time_t now;
             time(&now);
             char buf[sizeof "2011-10-08T07:07:09Z"];
