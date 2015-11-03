@@ -306,6 +306,12 @@ void readline_callback(char *line) {
 
 int main(int argc, char **argv)
 {
+    int l = 0;
+    for(; l < argc; l++) {
+        fprintf(stdout, "l: %d - %s\n", l, argv[l]);
+        fflush(stdout);
+    }
+
     /* Welcome message in client. */
     fprintf(stdout, "CLIENT INITIALIZING -- %d COOL 4 SCH00L!\n", argc);
     fflush(stdout);
@@ -336,7 +342,7 @@ int main(int argc, char **argv)
     server_ssl = SSL_new(ssl_ctx);
 
     /* Loading CA from the CA file and verify the certificate from the server */
-    if(SSL_CTX_load_verify_locations(ssl_ctx, argv[5], NULL) <= 0) {
+    if(SSL_CTX_load_verify_locations(ssl_ctx, argv[2], NULL) <= 0) {
         perror("Error loading CA.\n");
         exit(0);
     }
@@ -359,7 +365,7 @@ int main(int argc, char **argv)
     /* Network functions need arguments in network byte order instead of 
        host byte order. The macros htonl, htons convert the values */
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server.sin_port = htons(atoi(argv[2]));
+    server.sin_port = htons(atoi(argv[1]));
 
     /* Connect to the server using TCP */
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {

@@ -867,6 +867,12 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 } 
 
 int main(int argc, char **argv) {
+    int l = 0;
+    for(; l < argc; l++) {
+        fprintf(stdout, "l: %d  - %s \n", l, argv[l]);
+        fflush(stdout);
+    }
+
     /* Welcoming message. */ 
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);

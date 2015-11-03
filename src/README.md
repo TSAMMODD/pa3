@@ -1,3 +1,12 @@
+# Setup
+
+## Running the server
+
+When running the server we assume that the first argument is *./src/chatd*, the second argument is the *port*, the third argument is the certificat file, *fd.crt*, with a absolute path. The fourth and final argument is the key file, *fd.key* with absolute path.
+
+For example:
+```./src/chatd $(/labs/tsam15/my_port) /home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.crt /home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.key```
+
 # Questions
 
 ## Question 5
