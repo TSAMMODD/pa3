@@ -392,6 +392,10 @@ gboolean is_greater_fd(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 } 
 
+/* A function used to send some user a private message. It is called each time
+ * when we iterate through our user_tree and if the receiving user matches 
+ * a user in the user_tree we send him/her the private message.
+ */
 gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     UNUSED(key);
     struct user *conn = (struct user *) value;
