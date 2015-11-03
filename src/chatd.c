@@ -34,6 +34,7 @@
 #define MAX_USER_LENGTH 48
 #define TIMEOUT_SECONDS 300
 #define HASH_ITERATION 5000
+#define MAX_CONNECTIONS 30
 
 /* The GTree struct is an opaque data structure representing a balanced binary tree. 
  * This GTree, user_tree, represents such tree and contains information about user 
@@ -762,72 +763,82 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         exit(1);
                     }
 
-                    /*  */
+                    /* Writing authentication error to the screen. */
                     fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
                     fflush(stdout);
+                    /* Writing authentication error to the file log. */
                     fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
                     fflush(fp);
+                    
+                    /* Freeing the key file memory. */
                     g_key_file_free(keyfile);
                     return FALSE;
                 }
             }
-
-            if(strlen(user->nick_name) == 0) {
-                strcpy(user->nick_name, user_name);
-            }
-
+            
+            /* Setting data. The user's nick name is set to his username when registering. */
             strncpy(user->username, user_name, strlen(user_name));
             strncpy(user->nick_name, user_name, strlen(user_name));
 
+            /* Opening password file. */
             password_fp = fopen("src/passwords.ini", "w");
+            /* Base64 encoding the password and write the password to the file via keyfile. */
             gchar *passwd64 = g_base64_encode((const guchar *) password, strlen(password));
             g_key_file_set_string(keyfile, "passwords", user_name, passwd64);
             gsize length;
             gchar *keyfile_string = g_key_file_to_data(keyfile, &length, NULL);
             fprintf(password_fp, "%s", keyfile_string);
+            /* Cleanup. */
             g_free(keyfile_string);
             g_free(passwd64);
             g_key_file_free(keyfile);
+            /* Close password file. */
             fclose(password_fp);
 
+            /* Print out success msg to user. */
             if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
                 perror("Error Writing to client\n");
                 exit(1);
             }
+
+            /* Print out register message to screen. */
             fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered.");
             fflush(stdout);
+            /* Print out register message to log file. */
             fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user->username, "registered");
             fflush(fp);
 
-        } else if(strncmp(recvMessage, "/nick", 5) == 0) {
-            if(strlen(user->username) == 0) {
-                strcat(message, "You have to be authenticated to set your nickname. Use the command '/user 'username'' to register.");
-                size = SSL_write(user->ssl, message, strlen(message));
-                if(size < 0) {
-                    perror("Error writing to client");
-                    exit(1);
-                }
-            } else {
-                char new_nick_name[MAX_LENGTH];
-                memset(new_nick_name, '\0', sizeof(new_nick_name));
-                int i = 5;
-                while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
-                strncpy(new_nick_name, recvMessage + i, sizeof(recvMessage));
-                memset(user->nick_name, '\0', MAX_USER_LENGTH); 
-                if(strlen(new_nick_name) == 0) {
-                    strcat(new_nick_name, "Anonymous");
-                }
-                strcat(user->nick_name, new_nick_name);
-                strcat(message, "You have succesfully set your nick as '");
-                strcat(message, new_nick_name);
-                strcat(message, "'.");
-                size = SSL_write(user->ssl, message, strlen(message));
-                if(size < 0) {
-                    perror("Error writing to client");
-                    exit(1);
-                }
+        }
+        /* If the user types in '/nick' than he is trying to set his nickname. The nickname can be any combination of character. If the
+         * nickname is set to empty string then the nick is set to 'Anonymour'. The nickname can even be other's username name. */
+        else if(strncmp(recvMessage, "/nick", 5) == 0) {
+            char new_nick_name[MAX_LENGTH];
+            memset(new_nick_name, '\0', sizeof(new_nick_name));
+            int i = 5;
+            /* Removing whitespace from nick. */
+            while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
+            strncpy(new_nick_name, recvMessage + i, sizeof(recvMessage));
+            memset(user->nick_name, '\0', MAX_USER_LENGTH); 
+            /* If the nick is empty it is set to 'Anonymous'. */
+            if(strlen(new_nick_name) == 0) {
+                strcat(new_nick_name, "Anonymous");
             }
-        } else {
+
+            strcat(user->nick_name, new_nick_name);
+            
+            /* Print out success msg to user. */                
+            strcat(message, "You have succesfully set your nick as '");
+            strcat(message, new_nick_name);
+            strcat(message, "'.");
+            size = SSL_write(user->ssl, message, strlen(message));
+            if(size < 0) {
+                perror("Error writing to client");
+                exit(1);
+            }
+        }
+        /* If the message does not match any command it is normal message. */
+        else {
+            /* If the user is not in any room the server sends him a error msg. */
             if(user->room_name == NULL) {
                 strcat(message, "You either have to be in a room or send a private message if you want somebody to recieve your message.");
                 size = SSL_write(user->ssl, message, strlen(message));
@@ -836,14 +847,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             } else {
+                /* Find the room in our room's tree with the given name. */
                 struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 char _recvMessage[MAX_LENGTH];
                 memset(_recvMessage, '\0', MAX_LENGTH);
+        
+                /* Building the user's message. */
                 strcat(_recvMessage, user->username);
                 strcat(_recvMessage, " [");
                 strcat(_recvMessage, user->nick_name);
                 strcat(_recvMessage, "]: ");
                 strcat(_recvMessage, recvMessage);
+                /* Send the message to all users in the room. */
                 g_list_foreach(the_room->users, send_message_to_user, _recvMessage);
             }
         }
@@ -853,15 +868,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
 } 
 
 int main(int argc, char **argv) {
-    signal(SIGINT, sigint_handler);
+    /* Welcoming message. */ 
     fprintf(stdout, "SERVER INITIALIZING -- %d C00L 4 SCH00L!\n", argc);
     fflush(stdout);
+    /* Set sigint handler. */
+    signal(SIGINT, sigint_handler);
     int listen_sock;
     struct sockaddr_in server;
+    /* Initilizing our trees. */
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
 
-    /* Creating rooms. */
+    /* Creating room data. */
     char *room_name_1 = g_new0(char, 1);
     char *room_name_2 = g_new0(char, 1);
     char *room_name_3 = g_new0(char, 1);
@@ -937,7 +955,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    listen(listen_sock, 30);
+    listen(listen_sock, MAX_CONNECTIONS);
 
     for (;;) {
         fd_set rfds;
@@ -948,15 +966,20 @@ int main(int argc, char **argv) {
         tv.tv_usec = 0;
 
         FD_ZERO(&rfds);
+        /* Check user's timeout. */
         g_tree_foreach(user_tree, check_timeout, NULL);
+        /* Getting the highest FD in our user's room. */
         g_tree_foreach(user_tree, is_greater_fd, &highestFD);
+        /* Setting user's file descriptor to the fd_set. */
         g_tree_foreach(user_tree, fd_set_nodes, &rfds);
         
         FD_SET(listen_sock, &rfds);
+        /* If this is the first connection than the highestFD is set to listen_sock. */
         if(listen_sock > highestFD) {
             highestFD = listen_sock;
         }
         
+        /* Check for users' message with select function. */
         retval = select(highestFD + 1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
 
         /* Open file log file. */
@@ -966,6 +989,7 @@ int main(int argc, char **argv) {
         } else if (retval > 0) {
             if(FD_ISSET(listen_sock, &rfds)){
                 struct sockaddr_in *addr = g_new0(struct sockaddr_in, 1);
+                /* Creating user's data. */
                 struct user *user = g_new0(struct user, 1);
                 socklen_t len = sizeof(addr);
                 user->connfd = accept(listen_sock, (struct sockaddr*) addr, &len); 
@@ -989,9 +1013,11 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
                 
+                /* Building welcome message. */
                 char welcome_message[MAX_LENGTH];
                 memset(welcome_message, '\0', MAX_LENGTH);
                 strcat(welcome_message, "Welcome! - Please authenticate youself with the command '/user <username>' before you start using the chat server.");
+                /* Send welcome message to user. */
                 if(SSL_write(user->ssl, welcome_message, strlen(welcome_message)) < 0){
                     perror("Error writing 'Welcome'\n");
                     exit(1);
@@ -1001,6 +1027,7 @@ int main(int argc, char **argv) {
                 user->loginTries = 0;
                 user->loginTryTime = 0;
 
+                /* Insert user to our user tree. */
                 g_tree_insert(user_tree, addr, user);
 
                 /* Creating the timestamp. */
@@ -1017,6 +1044,7 @@ int main(int argc, char **argv) {
                 fflush(fp);
             }
 
+            /* Handle user's message. */
             g_tree_foreach(user_tree, check_connection, &rfds);
 
             /* Close the logfile. */
