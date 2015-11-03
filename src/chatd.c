@@ -441,7 +441,11 @@ void send_message_to_user(gpointer data, gpointer user_data) {
     }
 }
 
-/**/
+/* The check_connection function is our largest and most important function
+ * besides 'main' and handles all functionality regarding user input, i.e.
+ * what should happen when a user types in an available command and the
+ * appropriate parameters. It is called when we iterate through our user_tree.
+ */
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
@@ -449,7 +453,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     char recvMessage[MAX_LENGTH];
     int size = 0;
     if(FD_ISSET(user->connfd, rfds)){
-       time(&user->timeout); 
+        time(&user->timeout); 
         memset(recvMessage, '\0', strlen(recvMessage));
         size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
         if(size < 0 ){
