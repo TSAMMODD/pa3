@@ -318,8 +318,6 @@ gboolean check_user(gpointer key, gpointer value, gpointer data) {
 
     if(sockaddr_in_cmp(conn_key, namecompare->curruser_key, NULL) != 0 && strlen(user->username) != 0 && strcmp(user->username, namecompare->name) == 0) {
         namecompare->found = 1;
-    } else if(sockaddr_in_cmp(conn_key, namecompare->curruser_key, NULL) != 0 && strlen(user->nick_name) != 0 && strcmp(user->nick_name, namecompare->name) == 0) {
-        namecompare->found = 1;
     }
 
     return FALSE;
