@@ -434,22 +434,6 @@ void send_message_to_user(gpointer data, gpointer user_data) {
     }
 }
 
-void print_userinfo(gpointer data, gpointer user_data) {
-    UNUSED(user_data);
-    struct userstruct *user = (struct userstruct *) data;
-    //fprintf(stdout, "Inside userinfo\n");
-    //fflush(stdout);
-
-    if(user == NULL){
-        //fprintf(stdout, "NULL\n");
-        //fflush(stdout);
-        return;
-    }
-    //fprintf(stdout, "Pointer: %d -> Username: %s, password: %s\n", user, user->username, user->password);
-    //fflush(stdout);
-}
-
-
 /**/
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
