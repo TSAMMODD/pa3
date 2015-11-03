@@ -32,6 +32,8 @@ To join them the user can use the command */join <roomname>* as stated in the re
 
 The only command that we added to the server that were not mentioned in the requirements is the */nick <nickname>* command. That command will change user's nickname.
 
+We implemented the timeout for idle users. The timeout is 3 minutes and resets every time the user sends a message or a command.
+
 # Questions
 
 ## Question 5
