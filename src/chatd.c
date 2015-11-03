@@ -549,7 +549,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error writing to client");
                 exit(1);
             }
-        } else if(strncmp(recvMessage, "/join", 5) == 0) {
+        } 
+        /* If the user types in '/join' and a room name he will join the room with that name,
+         * given that it exists. A client can only be a member of one chat room at a time.
+         */
+        else if(strncmp(recvMessage, "/join", 5) == 0) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
