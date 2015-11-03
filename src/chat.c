@@ -90,7 +90,7 @@ void getpasswd(const char *prompt, char *passwd, size_t size) {
     char the_password[MAX_LENGTH];
     strncpy(the_password, SALT, strlen(SALT));
     strncat(the_password, passwd, strlen(passwd));
-    /* The hash logic. */
+    /* The hash logic. Hash 5001 Times. */
     SHA256((unsigned char *) the_password, strlen(the_password), (unsigned char *)buf1);
     
     int i = 0;
@@ -271,11 +271,13 @@ void readline_callback(char *line) {
 
         char passwd[48];
         getpasswd("Password: ", passwd, 48);
-
+        /* Send Username and /user command */
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
             perror("Error writing /user to server\n");
             exit(1);
         }
+
+        /* Send password independantly. Server expects this. */
         if(SSL_write(server_ssl, passwd, strlen(passwd)) < 0){
             perror("Error writing pw to server\n");
             exit(1);
@@ -285,13 +287,15 @@ void readline_callback(char *line) {
     }
     /* Sent the buffer to the server. */
     if (strncmp("/who", line, 4) == 0) {
-        /* Query all available users */
+        /* Send who command to server, info is processed by server and returned as string */
         if(SSL_write(server_ssl, line, strlen(line)) < 0){
             perror("Error writing /who to server\n");
             exit(1);
         }
         return;
     }
+    
+    /* If there is no command we only have to send the message to the server */
     snprintf(buffer, 255, "Message: %s\n", line);
     if(SSL_write(server_ssl, line, strlen(line)) < 0){
         perror("Error writing message to server\n");
@@ -318,14 +322,17 @@ int main(int argc, char **argv)
     char *str;    
     char recvMessage[8196];
 
+    /* User SSLv3 client method since this is a dedicated client */
     method = SSLv3_client_method();
 
+    /* New an SSL_CTX structure and check for errors */
     ssl_ctx = SSL_CTX_new(method);
     if(ssl_ctx == NULL){
         perror("Error loading CA.\n");
         exit(1);
     }
 
+    /* New an ssl structure */
     server_ssl = SSL_new(ssl_ctx);
 
     /* Loading CA from the CA file and verify the certificate from the server */
@@ -334,6 +341,7 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+    /* Make the client require the server certificate */
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 
     SSL_CTX_set_verify_depth(ssl_ctx, 1);
@@ -345,7 +353,7 @@ int main(int argc, char **argv)
         perror("Could not create socket.\n");
         exit(0);
     }
-
+    /* Set the server address */
     memset(&server, '\0', sizeof(server));
     server.sin_family = AF_INET;
     /* Network functions need arguments in network byte order instead of 
@@ -353,11 +361,13 @@ int main(int argc, char **argv)
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_port = htons(atoi(argv[2]));
 
+    /* Connect to the server using TCP */
     if(connect(sockfd, (struct sockaddr*)&server, sizeof(server)) != 0) {
         perror("Could not connect to server.\n");
         exit(1);
     }
 
+    /* New an SSL structure using the ssl_ctx specified */
     server_ssl = SSL_new(ssl_ctx);
 
     if(server_ssl == NULL){
@@ -365,20 +375,21 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    /* Set the ssl structure to the socket */
     SSL_set_fd(server_ssl, sockfd);
-
 
     if(server_ssl == NULL){
         perror("ssl == null\n");
         exit(1);
     }    
 
+    /* Make the handshake with the server */
     if(SSL_connect(server_ssl) == -1){
         perror("Error SSL_connecting to server\n");
         exit(1);
     }
 
-
+    /* Get server's certificate */
     server_cert = SSL_get_peer_certificate(server_ssl);
 
     if(server_cert != NULL){
@@ -406,17 +417,20 @@ int main(int argc, char **argv)
     while (active) {
         fd_set rfds;
         struct timeval timeout;
-
+        /* Clear the fd set */
         FD_ZERO(&rfds);
+        /* Add the STDIN fd to the set */
         FD_SET(STDIN_FILENO, &rfds);
+        /* Add the socket fd to the set */
         FD_SET(sockfd, &rfds);
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
+        /* Set the highest fd for select */
         int highestFD = sockfd;
         if(STDIN_FILENO > sockfd){
             highestFD = STDIN_FILENO;
         }
-
+        /* Wait for messages for 5 seconds from server or input */
         int r = select(highestFD + 1, &rfds, NULL, NULL, &timeout);
         if (r < 0) {
             if (errno == EINTR) {
@@ -437,13 +451,16 @@ int main(int argc, char **argv)
             continue;
         }
         else{
+            /* Check if input has been typed */
             if(FD_ISSET(STDIN_FILENO, &rfds)) {
                 rl_callback_read_char();
             }
+            /* Check if socket has message */
             if(FD_ISSET(sockfd, &rfds)){
                 memset(recvMessage, '\0', sizeof(recvMessage));
+                /* SSL_read from server since there is a message to read */          
                 int size = SSL_read(server_ssl, recvMessage, sizeof(recvMessage));
-                
+                /* If size of message is 0 then the server closed the connection, cleanup. */
                 if(size == 0){
                     fprintf(stdout, "Server Closed the Connection! - Exiting\n");
                     fflush(stdout);
@@ -456,7 +473,7 @@ int main(int argc, char **argv)
                     fsync(STDOUT_FILENO);  
                     exit(0);
                 }
-
+                /* Print the received message on the screen */
                 strcat(recvMessage, "\n> ");
                 write(STDOUT_FILENO, recvMessage, strlen(recvMessage));
                 fsync(STDOUT_FILENO);               
@@ -464,8 +481,8 @@ int main(int argc, char **argv)
             }
         }
     }
-    /* replace by code to shutdown the connection and exit
-       the program. */
+    
+    /* Cleanup connection and ssl */
     SSL_shutdown(server_ssl);
     close(sockfd);
     SSL_free(server_ssl);
