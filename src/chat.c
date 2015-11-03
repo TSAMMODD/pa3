@@ -307,12 +307,6 @@ void readline_callback(char *line) {
 
 int main(int argc, char **argv)
 {
-    int l = 0;
-    for(; l < argc; l++) {
-        fprintf(stdout, "l: %d - %s\n", l, argv[l]);
-        fflush(stdout);
-    }
-
     /* Welcome message in client. */
     fprintf(stdout, "CLIENT INITIALIZING -- %d COOL 4 SCH00L!\n", argc);
     fflush(stdout);
