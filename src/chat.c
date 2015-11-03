@@ -33,6 +33,7 @@
 #include <readline/history.h>
 
 /* MACROS */
+#define UNUSED(x) (void)(x)
 #define MAX_LENGTH 9999
 
 /* This variable is 1 while the client is active and becomes 0 after
@@ -136,6 +137,7 @@ static char *prompt;
    call below may return with -1 and errno set to EINTR. Do not exit
    select with this error. */
 void sigint_handler(int signum) {
+    UNUSED(signum);
     active = 0;
 
     /* We should not use printf inside of signal handlers, this is not

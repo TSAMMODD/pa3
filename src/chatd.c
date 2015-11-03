@@ -56,6 +56,10 @@ static GTree* room_tree;
  */
 static GList *userinfo;
 
+/*
+ */
+GKeyFile *keyfile;
+
 /* Filepointer for log file */
 FILE *fp;
 /* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
@@ -805,6 +809,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
+    keyfile = g_key_file_new();
 
     userinfo = NULL;
 
