@@ -435,7 +435,11 @@ void send_message_to_user(gpointer data, gpointer user_data) {
     }
 }
 
-/**/
+/* The check_connection function is our largest and most important function
+ * besides 'main' and handles all functionality regarding user input, i.e.
+ * what should happen when a user types in an available command and the
+ * appropriate parameters. It is called when we iterate through our user_tree.
+ */
 gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     struct sockaddr_in *user_key = (struct sockaddr_in *) key;
     struct user *user = (struct user *) value;
@@ -443,7 +447,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
     char recvMessage[MAX_LENGTH];
     int size = 0;
     if(FD_ISSET(user->connfd, rfds)){
-       time(&user->timeout); 
+        time(&user->timeout); 
         memset(recvMessage, '\0', strlen(recvMessage));
         size = SSL_read(user->ssl, recvMessage, sizeof(recvMessage));
         if(size < 0 ){
@@ -476,7 +480,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         char message[MAX_LENGTH];
         memset(message, '\0', sizeof(message));
         int size = 0;
-        if(strlen(user->username) == 0){
+        /* If the user has no username, we know he has not logged in. If he tries to do anything 
+         * other than logging in/signing up via the '/user' command we write an error message. */
+        if(strlen(user->username) == 0) {
             if(strncmp(recvMessage, "/user", 5) != 0){
                 if(SSL_write(user->ssl, "You have to log in or register with '/user <username>'", strlen("You have to log in or register with '/user <username>'")) < 0){
                     perror("Error Writing To Client");
@@ -484,6 +490,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
         }
+        /* If the user types in '/who' we list the names of all users available on the system. */
         if(strncmp(recvMessage, "/who", 4) == 0) {
             g_tree_foreach(user_tree, list_userinfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
@@ -491,14 +498,19 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 perror("Error writing to client");
                 exit(1);
             }
-        } else if(strncmp(recvMessage, "/say", 4) == 0) {
+        } 
+        /* If the user types in '/say' he sends another user a private message. */
+        else if(strncmp(recvMessage, "/say", 4) == 0) {
             char user_name[MAX_USER_LENGTH];
             char message[MAX_LENGTH];
+            //messageLine is of the form '<username>[PM]: <message>'
             char messageLine[MAX_USER_LENGTH + MAX_LENGTH + sizeof("[PM]: ")];
             memset(user_name, '\0', sizeof(user_name));
             memset(message, '\0', sizeof(message));
             memset(messageLine, '\0', sizeof(messageLine));
             
+            /* The purpose of the next few lines are to parse the string received after
+             * '/say' into the username and message. */
             char str[MAX_LENGTH + MAX_USER_LENGTH];
             memset(str, '\0', sizeof(str));
             char *ptr;
@@ -520,16 +532,22 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(pm->message, '\0', MAX_LENGTH);
             strcpy(pm->message, messageLine);
 
+            //Find the correct user and send him/her the private message.
             g_tree_foreach(user_tree, send_private_message, pm);
-
-        } else if(strncmp(recvMessage, "/list", 5) == 0) {
+        }
+        /* If the user types in '/list' we list the names of all available public chat rooms. */ 
+        else if(strncmp(recvMessage, "/list", 5) == 0) {
             g_tree_foreach(room_tree, list_roominfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
             if(size < 0) {
                 perror("Error writing to client");
                 exit(1);
             }
-        } else if(strncmp(recvMessage, "/join", 5) == 0) {
+        } 
+        /* If the user types in '/join' and a room name he will join the room with that name,
+         * given that it exists. A client can only be a member of one chat room at a time.
+         */
+        else if(strncmp(recvMessage, "/join", 5) == 0) {
             char room_name[MAX_LENGTH];
             memset(room_name, '\0', sizeof(room_name));
             strncpy(room_name, recvMessage + 6, sizeof(recvMessage));
@@ -562,7 +580,13 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     exit(1);
                 }
             }
-        } else if(strncmp(recvMessage, "/user", 5) == 0) {
+        } 
+        /* If the user types in '/user' and a username he can register as a user with that username,
+         * or try to log in with that username if the username has already been registered. 
+         * The password is used as a shared secret between client and server. A user is disconnected 
+         * if the password does not match within three trials, and there is a delay between each attempt. 
+         * The password is processed securely via hashing. */
+        else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
             int i = 5;
