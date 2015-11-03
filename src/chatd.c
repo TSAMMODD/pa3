@@ -950,6 +950,7 @@ int main(int argc, char **argv) {
                     perror("Error writing 'Welcome'\n");
                     exit(1);
                 }
+
                 time(&user->timeout);
                 user->loginTries = 0;
                 user->loginTryTime = 0;
