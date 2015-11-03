@@ -4,3 +4,4 @@ src/chatd
 src/chatd.o
 *.swp
 src/httpd.log
+src/passwords.ini
