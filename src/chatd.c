@@ -595,6 +595,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     perror("Error writing to client");
                     exit(1);
                 }
+                memset(recvMessage, '\0', strlen(recvMessage));
                 return FALSE;
             }
 
@@ -605,6 +606,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     perror("Error writing to client");
                     exit(1);
                 }
+                memset(recvMessage, '\0', strlen(recvMessage));
                 return FALSE;
             }
 
@@ -617,6 +619,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     perror("Error Writing to client\n");
                     exit(1);
                 }
+                memset(recvMessage, '\0', strlen(recvMessage));
                 return FALSE;
             }
 
