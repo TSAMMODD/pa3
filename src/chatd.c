@@ -718,17 +718,15 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     g_key_file_free(keyfile);
                     return FALSE;
                 } else {
-                    /* If the password was not correct we increment the login tries. */
-                    user->loginTries = user->loginTries + 1;
 
-                    /* */
-                    if(user->loginTries > 3) {
+                    /* If the logintries is greater than 3 than the user have had too many failed login tries. */
+                    if(user->loginTries > 2) {
                         if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
                         
-                        /* If the  */
+                        /* If the user was in some room than we have to remove the user from the room's users list. */
                         if(user->room_name != NULL) {
                             struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                             previous_room->users = g_list_remove(previous_room->users, user_key);
@@ -747,16 +745,24 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
                         fflush(fp);
 
-                        /*  */
+                        /* Remove the user from the user tree. */
                         g_tree_remove(user_tree, user_key);
 
+                        /* Freeing the keyfile memory. */
                         g_key_file_free(keyfile);
                         return FALSE;
                     }
+
+                    /* If the password was not correct we increment the login tries. */
+                    user->loginTries = user->loginTries + 1;
+
+                    /* Printing error message to user. */
                     if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
                         perror("Error Writing to client\n");
                         exit(1);
                     }
+
+                    /*  */
                     fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
                     fflush(stdout);
                     fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
