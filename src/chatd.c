@@ -690,15 +690,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
-            /* Load the user's passwords to keyfile from our passwords file. */
             GKeyFile *keyfile = g_key_file_new();
+            /* Load the user's passwords to keyfile from our passwords file. */
             g_key_file_load_from_file(keyfile, "src/passwords.ini", G_KEY_FILE_NONE, NULL);
+            /* Getting our user's password from the keyfile data structure. */
             gchar *get_password64 = g_key_file_get_string(keyfile, "passwords", user_name, NULL);
 
+            /* If we did find a password matching the user name than we user is trying to login.  */
             if(get_password64 != NULL) {
                 gsize plength;
                 guchar *passwd = g_base64_decode(get_password64, &plength);
 
+                /* Comparing the stored password to the user's typed in password. */
                 if(strcmp((const char *) passwd, password) == 0) {
                     strncpy(user->username, user_name, MAX_USER_LENGTH);
                     strcpy(user->nick_name, user_name);
@@ -706,34 +709,46 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                         perror("Error Writing to client\n");
                         exit(1);
                     }
+                    /* Printing authentication info to screen. */
                     fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authenticated");
                     fflush(stdout);
+                    /* Printing authentication info to our log file. */
                     fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authenticated");
                     fflush(fp);
                     g_key_file_free(keyfile);
                     return FALSE;
                 } else {
+                    /* If the password was not correct we increment the login tries. */
                     user->loginTries = user->loginTries + 1;
 
-                    if(user->loginTries > 2){
+                    /* */
+                    if(user->loginTries > 3) {
                         if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
                             perror("Error Writing to client\n");
                             exit(1);
                         }
-                        g_tree_remove(user_tree, user_key);
+                        
+                        /* If the  */
                         if(user->room_name != NULL) {
                             struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                             previous_room->users = g_list_remove(previous_room->users, user_key);
                         }
 
+                        /* Printing authentication error to screen. */
                         fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
                         fflush(stdout);
+                        /* Printing authentication error to log file */
                         fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
                         fflush(fp);
-                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
+                        /* Printing disconnect message to screen. */
+                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
                         fflush(stdout);
+                        /* Printing disconnect message to log file. */
                         fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
                         fflush(fp);
+
+                        /*  */
+                        g_tree_remove(user_tree, user_key);
 
                         g_key_file_free(keyfile);
                         return FALSE;
