@@ -588,9 +588,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
         } 
         /* If the user types in '/user' and a username he can register as a user with that username,
-         * or log in with that username. The password is used as a shared secret between client and server. 
-         * A user is disconnected if the password does not match within three trials, there is a delay 
-         * between each attempt.*/
+         * or try to log in with that username if the username has already been registered. 
+         * The password is used as a shared secret between client and server. A user is disconnected 
+         * if the password does not match within three trials, and there is a delay between each attempt. 
+         * The password is processed securely via hashing. */
         else if(strncmp(recvMessage, "/user", 5) == 0) {
             char user_name[MAX_USER_LENGTH];
             char password[MAX_USER_LENGTH];
