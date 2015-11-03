@@ -30,6 +30,8 @@ It is probably best to mention that we have hardcoded four rooms in the server. 
 
 To join them the user can use the command */join <roomname>* as stated in the requirement.
 
+There are no hardcoded users in the system so all user's have to register through the command '/user <username>'.
+
 The only command that we added to the server that were not mentioned in the requirements is the */nick <nickname>* command. That command will change user's nickname.
 
 We implemented the timeout for idle users. The timeout is 3 minutes and resets every time the user sends a message or a command.
