@@ -197,11 +197,6 @@ void readline_callback(char *line) {
             rl_redisplay();
             return;
         }
-        /* Start game */
-        if(SSL_write(server_ssl, line, strlen(line)) < 0 ){
-            perror("Error Writing /game to server\n");
-            exit(1);
-        }
         return;
     }
     if (strncmp("/join", line, 5) == 0) {
