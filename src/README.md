@@ -2,15 +2,35 @@
 
 ## Running the server
 
-When running the server we assume that the first argument is *./src/chatd*, the second argument is the *port*, the third argument is the certificat file, *fd.crt*, with a absolute path. The fourth and final argument is the key file, *fd.key* with absolute path.
+When running the server we assume that the *port* number is a argument to the server. We also have the absolute path of the *certificate* and *key* files hardcoded in the *macros* section in the program.
 
 For example:
 
-```./src/chatd $(/labs/tsam15/my_port) /home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.crt /home/hir.is/danielb13/Tolvusamskipti/tsam15/pa3/src/fd.key```
+```./src/chatd $(/labs/tsam15/my_port)```
 
 ## Running the client
 
-When running the client we assume that the first argument is *./src/chat*, the second argument is the *port* and the third and final argument 
+When running the client we assume that the *port* number is a argument to the server. We also have the absolute paht of the *pem file* hardcoded in the *macros* section in the program.
+
+For example:
+
+```./src/chat $(/labs/tsam15/my_port)```
+
+## Other useful information
+
+It is probably best to mention that we have hardcoded four rooms in the server. The rooms that can be join are as follows:
+
+1. Room1
+
+2. Room2
+
+3. Room3
+
+4. Room4
+
+To join them the user can use the command */join <roomname>* as stated in the requirement.
+
+The only command that we added to the server that were not mentioned in the requirements is the */nick <nickname>* command. That command will change user's nickname.
 
 # Questions
 
