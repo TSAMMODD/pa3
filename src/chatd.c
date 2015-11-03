@@ -204,8 +204,6 @@ void room_value_destroy(gpointer data) {
     GList* list = room->users;
     while(list != NULL) {
         GList* next = list->next;
-        //struct sockaddr_in *addr = (struct sockaddr_in *) list->data;
-        //g_free(addr);
         room->users = g_list_delete_link(room->users, list);
         list = next;   
     }
