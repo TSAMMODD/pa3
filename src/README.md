@@ -3,7 +3,7 @@
 ## Question 5
 1. Where are the passwords stored?
 
-...Answer: 
+Answer: 
 
 2. Where are the salt strings stored?
 
