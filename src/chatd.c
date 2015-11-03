@@ -56,12 +56,10 @@ static GTree* room_tree;
  */
 static GList *userinfo;
 
-/*
- */
-GKeyFile *keyfile;
-
 /* Filepointer for log file */
 FILE *fp;
+/*  */
+FILE *password_fp;
 /* The SSL_CTX object is created as a framework to establish TLS/SSL enabled connections. */
 SSL_CTX *ctx = NULL;
 
@@ -130,7 +128,6 @@ void sigint_handler(int signum) {
     g_list_free(userinfo);
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
-    g_key_file_free(keyfile);
 
     SSL_CTX_free(ctx);
     RAND_cleanup();
@@ -416,9 +413,6 @@ gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/* A function used when iterating through all users in a room.
- * It handles sending a message to all users in the room.
- */
 void send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in addr = *(struct sockaddr_in *) data;
     fprintf(stdout, "sockaddr_in.sin_port: %d\n", addr.sin_port);
@@ -646,6 +640,69 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
 
+            GKeyFile *keyfile = g_key_file_new();
+            g_key_file_load_from_file(keyfile, "src/passwords.ini", G_KEY_FILE_NONE, NULL);
+            gchar *get_password64 = g_key_file_get_string(keyfile, "passwords", user_name, NULL);
+            gsize plength;
+            guchar *passwd = g_base64_decode(get_password64, &plength);
+            fprintf(stdout, "decoded pass: %s\n", passwd);
+            fflush(stdout);
+
+            if(passwd != NULL) {
+                if(strcmp(passwd, password) == 0) {
+                    strncpy(user->username, user_name, MAX_USER_LENGTH);
+                    strcpy(user->nick_name, user_name);
+                    if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
+                        perror("Error Writing to client\n");
+                        exit(1);
+                    }
+                    fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authenticated");
+                    fflush(stdout);
+                    fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authenticated");
+                    fflush(fp);
+                    g_key_file_free(keyfile);
+                    return FALSE;
+                } else {
+                    user->loginTries = user->loginTries + 1;
+
+                    if(user->loginTries > 2){
+                        if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
+                            perror("Error Writing to client\n");
+                            exit(1);
+                        }
+                        g_tree_remove(user_tree, user_key);
+                        if(user->room_name != NULL) {
+                            struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
+                            previous_room->users = g_list_remove(previous_room->users, user_key);
+                        }
+
+                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
+                        fflush(stdout);
+                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
+                        fflush(fp);
+                        fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
+                        fflush(stdout);
+                        fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
+                        fflush(fp);
+
+                        g_key_file_free(keyfile);
+                        return FALSE;
+                    }
+                    if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
+                        perror("Error Writing to client\n");
+                        exit(1);
+                    }
+                    fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
+                    fflush(stdout);
+                    fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, user_name, "authentication error");
+                    fflush(fp);
+                    g_key_file_free(keyfile);
+                    return FALSE;
+                }
+            }
+
+
+            /*
             GList *l;
             for(l = userinfo; l != NULL; l = l->next) {
                 struct userstruct *userBoo = (struct userstruct *) l->data;
@@ -706,6 +763,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                     break;
                 }
             }
+            */
 
             if(strlen(user->nick_name) == 0) {
                 strcpy(user->nick_name, user_name);
@@ -718,14 +776,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             memset(userInformation->password, '\0', MAX_USER_LENGTH);
             strcpy(userInformation->password, password);
 
+            password_fp = fopen("src/passwords.ini", "w");
             gchar *passwd64 = g_base64_encode(password, strlen(password));
             g_key_file_set_string(keyfile, "passwords", user_name, passwd64);
             gsize length;
             gchar *keyfile_string = g_key_file_to_data(keyfile, &length, NULL);
+            fprintf(password_fp, "%s", keyfile_string);
             fprintf(stdout, "keyfile_string %s\n", keyfile_string);
             fflush(stdout);
             g_free(keyfile_string);
             g_free(passwd64);
+            g_key_file_free(keyfile);
+            fclose(password_fp);
 
             userinfo = g_list_append(userinfo, userInformation);
             if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
@@ -821,7 +883,6 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
-    keyfile = g_key_file_new();
     userinfo = NULL;
 
     /* Creating rooms. */
