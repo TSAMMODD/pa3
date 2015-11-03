@@ -212,14 +212,17 @@ void print_users(gpointer data, gpointer user_data) {
     fflush(stdout);
 }
 
-/* A method used to destroy a room. It frees from memory a room,
- * found with room name, which is the key in the room tree.
+/* A function to free the memory allocated for the key used when 
+ * removing the entry from the room_tree GTree.
  */
 void room_key_destroy(gpointer data) {
     char* room_name = (char *) data;
     g_free(room_name);
 }
 
+/* A function to free the memory allocated for the value used when 
+ * removing the entry from the room_tree GTree.
+ */
 void room_value_destroy(gpointer data) {
     struct room *room = (struct room *) data;
     GList* list = room->users;
