@@ -416,8 +416,8 @@ gboolean send_private_message(gpointer key, gpointer value, gpointer data) {
     return FALSE;
 }
 
-/* 
- *
+/* A function used when iterating through all users in a room.
+ * It handles sending a message to all users in the room.
  */
 void send_message_to_user(gpointer data, gpointer user_data) {
     struct sockaddr_in addr = *(struct sockaddr_in *) data;
