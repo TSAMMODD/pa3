@@ -591,7 +591,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             if(namecompare.found) {
                 strcat(message, "You cannot register/login as the user '");
                 strcat(message, user_name);
-                strcat(message, "' because some user either has it as a username or nick.");
+                strcat(message, "' because some other user already has that username.");
                 size = SSL_write(user->ssl, message, strlen(message));
                 if(size < 0) {
                     perror("Error writing to client");
@@ -728,6 +728,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             }
 
             strncpy(user->username, user_name, strlen(user_name));
+            strncpy(user->nick_name, user_name, strlen(user_name));
 
             password_fp = fopen("src/passwords.ini", "w");
             gchar *passwd64 = g_base64_encode((const guchar *) password, strlen(password));
@@ -740,7 +741,6 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             g_key_file_free(keyfile);
             fclose(password_fp);
 
-            //userinfo = g_list_append(userinfo, userInformation);
             if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
                 perror("Error Writing to client\n");
                 exit(1);
@@ -764,36 +764,18 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 int i = 5;
                 while (recvMessage[i] != '\0' && isspace(recvMessage[i])) { i++; }
                 strncpy(new_nick_name, recvMessage + i, sizeof(recvMessage));
-                struct namecompare namecompare;
-                namecompare.name = new_nick_name;
-                namecompare.found = 0;
-                namecompare.curruser_key = user_key;
-
-                g_tree_foreach(user_tree, check_user, &namecompare);
-
-                if(!namecompare.found) {
-                    memset(user->nick_name, '\0', MAX_USER_LENGTH); 
-                    if(strlen(new_nick_name) == 0) {
-                        strcat(new_nick_name, "Anonymous");
-                    }
-                    strcat(user->nick_name, new_nick_name);
-                    strcat(message, "You have succesfully set your nick as '");
-                    strcat(message, new_nick_name);
-                    strcat(message, "'.");
-                    size = SSL_write(user->ssl, message, strlen(message));
-                    if(size < 0) {
-                        perror("Error writing to client");
-                        exit(1);
-                    }
-                } else {
-                    strcat(message, "You cannot choose the nick '");
-                    strcat(message, new_nick_name);
-                    strcat(message, "' because some user either has it as a username or nick.");
-                    size = SSL_write(user->ssl, message, strlen(message));
-                    if(size < 0) {
-                        perror("Error writing to client");
-                        exit(1);
-                    }
+                memset(user->nick_name, '\0', MAX_USER_LENGTH); 
+                if(strlen(new_nick_name) == 0) {
+                    strcat(new_nick_name, "Anonymous");
+                }
+                strcat(user->nick_name, new_nick_name);
+                strcat(message, "You have succesfully set your nick as '");
+                strcat(message, new_nick_name);
+                strcat(message, "'.");
+                size = SSL_write(user->ssl, message, strlen(message));
+                if(size < 0) {
+                    perror("Error writing to client");
+                    exit(1);
                 }
             }
         } else {
@@ -808,15 +790,10 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 struct room *the_room = g_tree_search(room_tree, search_strcmp, user->room_name);
                 char _recvMessage[MAX_LENGTH];
                 memset(_recvMessage, '\0', MAX_LENGTH);
-                if(strlen(user->nick_name) != 0) {
-                    strcat(_recvMessage, user->nick_name);
-                } else {
-                    char anonymous[MAX_LENGTH];
-                    memset(anonymous, '\0', MAX_LENGTH);
-                    strcat(anonymous, "Anonmymous");
-                    strcat(_recvMessage, anonymous);
-                }
-                strcat(_recvMessage, ": ");
+                strcat(_recvMessage, user->username);
+                strcat(_recvMessage, " [");
+                strcat(_recvMessage, user->nick_name);
+                strcat(_recvMessage, "]: ");
                 strcat(_recvMessage, recvMessage);
                 g_list_foreach(the_room->users, send_message_to_user, _recvMessage);
             }
