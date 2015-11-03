@@ -486,7 +486,9 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
         char message[MAX_LENGTH];
         memset(message, '\0', sizeof(message));
         int size = 0;
-        if(strlen(user->username) == 0){
+        /* If the user has no username, we know he has not logged in. If he tries to do anything 
+         * other than logging in/signing up via the '/user' command we write an error message. */
+        if(strlen(user->username) == 0) {
             if(strncmp(recvMessage, "/user", 5) != 0){
                 if(SSL_write(user->ssl, "You have to log in or register with '/user <username>'", strlen("You have to log in or register with '/user <username>'")) < 0){
                     perror("Error Writing To Client");
@@ -494,6 +496,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 return FALSE;
             }
         }
+        /* If the user types in '/who' we list the names of all users available on the system */
         if(strncmp(recvMessage, "/who", 4) == 0) {
             g_tree_foreach(user_tree, list_userinfo, &message);
             size = SSL_write(user->ssl, message, strlen(message));
