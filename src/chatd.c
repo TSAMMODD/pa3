@@ -48,14 +48,6 @@ static GTree* user_tree;
  */
 static GTree* room_tree;
 
-/* The GList struct is used for each element in a doubly-linked list. 
- * This GList, userinfo, contains as data in each node a 'userstruct' struct that
- * only contains information about a user's username and password.
- * This GList maintains information about every user that has ever logged in, and
- * not only the present user connections, like the user_tree does.
- */
-static GList *userinfo;
-
 /* Filepointer for log file */
 FILE *fp;
 /*  */
@@ -85,14 +77,6 @@ struct room {
     GList *users;
 };
 
-/* The 'userstruct' struct contains information about a user's basic credentials,
- * i.e. his username and password.
- */
-struct userstruct {
-    char username[MAX_USER_LENGTH];
-    char password[MAX_USER_LENGTH];
-};
-
 /* The 'namecompare' struct is used when we traverse through our user_tree
  * to find a certain user.
  */
@@ -115,17 +99,6 @@ struct privatemessage {
  */
 void sigint_handler(int signum) {
     UNUSED(signum);
-
-    GList *l = userinfo;
-    GList *next;
-    while (l != NULL) {
-       next = l->next;
-       free(l->data);
-       userinfo = g_list_delete_link(userinfo, l); 
-       l = next;
-    }
-
-    g_list_free(userinfo);
     g_tree_destroy(user_tree);
     g_tree_destroy(room_tree);
 
@@ -725,80 +698,11 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
                 }
             }
 
-
-            /*
-            GList *l;
-            for(l = userinfo; l != NULL; l = l->next) {
-                struct userstruct *userBoo = (struct userstruct *) l->data;
-                char *username = (char *) userBoo->username;
-                char *pw = (char *) userBoo->password;
-
-                if(strcmp(username, user_name) == 0){
-                    time(&user->loginTryTime);
-
-                    if(strcmp(pw, password) == 0){
-                        strncpy(user->username, user_name, MAX_USER_LENGTH);
-                        strcpy(user->nick_name, user_name);
-                        if(SSL_write(user->ssl, "Successfully logged in.", strlen("Successfully logged in.")) < 0) {
-                            perror("Error Writing to client\n");
-                            exit(1);
-                        }
-                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authenticated");
-                        fflush(stdout);
-                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authenticated");
-                        fflush(fp);
-                        return FALSE;
-                    }
-                    else {
-                        user->loginTries = user->loginTries + 1;
-
-                        if(user->loginTries > 2){
-                            if(SSL_write(user->ssl, "Too many failed login tries, disconnecting.\n", strlen("Too many failed login tries, disconnecting.")) < 0) {
-                                perror("Error Writing to client\n");
-                                exit(1);
-                            }
-                            g_tree_remove(user_tree, user_key);
-                            if(user->room_name != NULL) {
-                                struct room *previous_room = g_tree_search(room_tree, search_strcmp, user->room_name);
-                                previous_room->users = g_list_remove(previous_room->users, user_key);
-                            }
-
-                            fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                            fflush(stdout);
-                            fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                            fflush(fp);
-                            fprintf(stdout, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "diconnected for too many login tries.");
-                            fflush(stdout);
-                            fprintf(fp, "%s : %s:%d %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port,  "disconnected for too many login tries.");
-                            fflush(fp);
-
-                            return FALSE;
-                        }
-                        if(SSL_write(user->ssl, "Incorrect password.", strlen("Incorrect password.")) < 0) {
-                            perror("Error Writing to client\n");
-                            exit(1);
-                        }
-                        fprintf(stdout, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                        fflush(stdout);
-                        fprintf(fp, "%s : %s:%d %s %s \n", buf, inet_ntoa(user_key->sin_addr), user_key->sin_port, username, "authentication error");
-                        fflush(fp);
-                        return FALSE;
-                    }
-                    break;
-                }
-            }
-            */
-
             if(strlen(user->nick_name) == 0) {
                 strcpy(user->nick_name, user_name);
             }
 
-            strncpy(user->username, user_name, MAX_USER_LENGTH);
-            struct userstruct *userInformation = (struct userstruct *) malloc(sizeof(struct userstruct));
-            memset(userInformation->username, '\0', MAX_USER_LENGTH);
-            strcpy(userInformation->username, user_name);
-            memset(userInformation->password, '\0', MAX_USER_LENGTH);
-            strcpy(userInformation->password, password);
+            strncpy(user->username, user_name, strlen(user_name));
 
             password_fp = fopen("src/passwords.ini", "w");
             gchar *passwd64 = g_base64_encode(password, strlen(password));
@@ -813,7 +717,7 @@ gboolean check_connection(gpointer key, gpointer value, gpointer data) {
             g_key_file_free(keyfile);
             fclose(password_fp);
 
-            userinfo = g_list_append(userinfo, userInformation);
+            //userinfo = g_list_append(userinfo, userInformation);
             if(SSL_write(user->ssl, "Successfully registered.", strlen("Successfully registered.")) < 0) {
                 perror("Error Writing to client\n");
                 exit(1);
@@ -907,7 +811,6 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     user_tree = g_tree_new_full(sockaddr_in_cmp, NULL, user_key_destroy, user_value_destroy);
     room_tree = g_tree_new_full(_strcmp, NULL, room_key_destroy, room_value_destroy);
-    userinfo = NULL;
 
     /* Creating rooms. */
     char *room_name_1 = g_new0(char, 1);
