@@ -36,6 +36,8 @@ The only command that we added to the server that were not mentioned in the requ
 
 We implemented the timeout for idle users. The timeout is 3 minutes and resets every time the user sends a message or a command.
 
+The password to the server is *flot*. It would obviously be better to have a longer and more complicated password for security reasons but we decided to stick with something simple for simplicity of the grading.
+
 # Questions
 
 ## Question 5
